@@ -18,7 +18,7 @@ def generate_all_decks():
 
     entries = models.get_all_entries(status='incorrect')
     seen_fronts = set()
-    counts = {'translate': 0, 'spelling': 0, 'fill_blank': 0, 'complete': 0, 'pattern': 0}
+    counts = {'express': 0, 'daily': 0}
 
     for entry in entries:
         original = entry['original']
@@ -39,38 +39,37 @@ def generate_all_decks():
         finally:
             conn.close()
 
-        # --- Deck 1: Translate (Chinese -> English) ---
+        # --- Deck: express (translate + pattern) ---
         if any('\u4e00' <= c <= '\u9fff' for c in original):
             front = original
             if front not in seen_fronts:
                 seen_fronts.add(front)
                 hint = _make_hint(idiomatic if idiomatic != 'N/A' else corrected)
                 models.insert_flashcard(
-                    deck='translate',
+                    deck='express',
                     front=f"Translate: {front}",
                     back=idiomatic if idiomatic != 'N/A' else corrected,
                     hint=hint,
                     source_entry_id=entry_id
                 )
-                counts['translate'] += 1
+                counts['express'] += 1
             continue
 
-        # --- Deck 2: Spelling ---
+        # --- Deck: daily (spelling + fill_blank + complete) ---
         typo_pairs = _extract_typos(original, corrected, explanation)
         for wrong, right in typo_pairs:
             key = f"spell:{wrong}"
             if key not in seen_fronts:
                 seen_fronts.add(key)
                 models.insert_flashcard(
-                    deck='spelling',
+                    deck='daily',
                     front=f"Correct the spelling: {wrong}",
                     back=right,
                     hint=f"Used in: {original[:60]}...",
                     source_entry_id=entry_id
                 )
-                counts['spelling'] += 1
+                counts['daily'] += 1
 
-        # --- Deck 3: Fill in the blank (articles & prepositions) ---
         if 'article' in cats or 'preposition' in cats:
             blank_q = _make_fill_blank(original, corrected, explanation)
             if blank_q:
@@ -79,42 +78,41 @@ def generate_all_decks():
                 if key not in seen_fronts:
                     seen_fronts.add(key)
                     models.insert_flashcard(
-                        deck='fill_blank',
+                        deck='daily',
                         front=front,
                         back=answer,
                         hint=explanation[:80],
                         source_entry_id=entry_id
                     )
-                    counts['fill_blank'] += 1
+                    counts['daily'] += 1
 
-        # --- Deck 4: Complete the sentence ---
         if 'incomplete' in cats or 'other' in cats:
             front = f"Fix this sentence: {original}"
             if front not in seen_fronts:
                 seen_fronts.add(front)
                 models.insert_flashcard(
-                    deck='complete',
+                    deck='daily',
                     front=front,
                     back=idiomatic if idiomatic != 'N/A' else corrected,
                     hint=explanation[:80],
                     source_entry_id=entry_id
                 )
-                counts['complete'] += 1
+                counts['daily'] += 1
 
-        # --- Deck 5: Pattern drill ---
+        # Pattern also goes to express
         pattern = entry.get('pattern', '')
         if pattern and pattern != 'N/A':
             key = f"pattern:{pattern[:50]}"
             if key not in seen_fronts:
                 seen_fronts.add(key)
                 models.insert_flashcard(
-                    deck='pattern',
+                    deck='express',
                     front=f"Use this pattern in a sentence: {pattern}",
                     back=idiomatic if idiomatic != 'N/A' else corrected,
                     hint=f"Example context: {explanation[:60]}",
                     source_entry_id=entry_id
                 )
-                counts['pattern'] += 1
+                counts['express'] += 1
 
     return counts
 

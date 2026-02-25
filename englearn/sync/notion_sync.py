@@ -91,12 +91,12 @@ def sync_notion_to_flashcards():
     conn = get_connection()
     try:
         # Remove old notion-sourced vocab cards
-        conn.execute("DELETE FROM flashcards WHERE deck IN ('vocab_en2cn', 'vocab_cn2en', 'vocab_use')")
+        conn.execute("DELETE FROM flashcards WHERE deck = 'vocab'")
         conn.commit()
     finally:
         conn.close()
 
-    counts = {'vocab_en2cn': 0, 'vocab_cn2en': 0, 'vocab_use': 0}
+    count = 0
 
     for w in words:
         word = w['word']
@@ -106,39 +106,19 @@ def sync_notion_to_flashcards():
         if not chinese:
             continue
 
-        # Deck 1: English → Chinese (看英文说中文)
+        # All vocab in one deck, mixed question types
+        # Type 1: Chinese → English (most useful)
         models.insert_flashcard(
-            deck='vocab_en2cn',
-            front=f"What does \"{word}\" mean?",
-            back=chinese,
-            hint=f"Category: {category}",
-        )
-        counts['vocab_en2cn'] += 1
-
-        # Deck 2: Chinese → English (看中文说英文)
-        models.insert_flashcard(
-            deck='vocab_cn2en',
+            deck='vocab',
             front=f"How do you say \"{chinese}\" in English?",
             back=word,
             hint=f"Category: {category}",
         )
-        counts['vocab_cn2en'] += 1
+        count += 1
 
-        # Deck 3: Use in a sentence (造句)
-        models.insert_flashcard(
-            deck='vocab_use',
-            front=f"Use \"{word}\" ({chinese}) in a work sentence.",
-            back=_generate_example(word, category),
-            hint=f"Think about your daily work at AWS.",
-        )
-        counts['vocab_use'] += 1
+    print(f"  Created {count} vocab flashcards.")
 
-    total = sum(counts.values())
-    print(f"  Created {total} flashcards from Notion vocabulary:")
-    for deck, count in counts.items():
-        print(f"    {deck}: {count} cards")
-
-    return total
+    return count
 
 
 def _generate_example(word: str, category: str) -> str:
