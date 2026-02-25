@@ -70,10 +70,30 @@
 </div>
 
 <script>
-const scenarios = {{ scenarios | tojson }};
-let idx = 0;
-let correct = 0;
-let answered = 0;
+const KEY = 'englearn_talk_session';
+const freshScenarios = {{ scenarios | tojson }};
+
+// Restore or start new session
+let session = JSON.parse(localStorage.getItem(KEY) || 'null');
+if (!session || session.done) {
+    session = { scenarios: freshScenarios, idx: 0, correct: 0, answered: 0, done: false };
+}
+const scenarios = session.scenarios;
+let idx = session.idx;
+let correct = session.correct;
+let answered = session.answered;
+
+function saveSession() {
+    session.idx = idx;
+    session.correct = correct;
+    session.answered = answered;
+    localStorage.setItem(KEY, JSON.stringify(session));
+}
+
+function clearSession() {
+    session.done = true;
+    localStorage.setItem(KEY, JSON.stringify(session));
+}
 
 function showScene() {
     if (idx >= scenarios.length) { showComplete(); return; }
@@ -85,17 +105,19 @@ function showScene() {
     document.getElementById('userInput').value = '';
     document.getElementById('feedback').style.display = 'none';
     document.getElementById('submitBtn').disabled = false;
+    document.getElementById('submitBtn').textContent = 'Send';
     document.getElementById('userInput').focus();
     document.getElementById('progressFill').style.width = (idx / scenarios.length * 100) + '%';
+    saveSession();
 }
 
 async function submitAnswer() {
     const input = document.getElementById('userInput').value.trim();
     if (!input) return;
     document.getElementById('submitBtn').disabled = true;
+    document.getElementById('submitBtn').textContent = 'Scoring...';
 
     const s = scenarios[idx];
-    document.getElementById('submitBtn').textContent = 'Scoring...';
     const resp = await fetch('/talk/answer', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -112,14 +134,13 @@ async function submitAnswer() {
 
     answered++;
     if (data.is_correct) correct++;
+    saveSession();
 
     // Show feedback
-    const fb = document.getElementById('feedback');
-    fb.style.display = 'block';
+    document.getElementById('feedback').style.display = 'block';
     document.getElementById('fbUserAnswer').textContent = input;
     document.getElementById('fbBestAnswer').textContent = data.best_response;
 
-    // Show LLM feedback
     const fbDetail = document.getElementById('fbDetail');
     if (data.feedback) {
         fbDetail.textContent = data.feedback;
@@ -151,15 +172,18 @@ function skipRound() {
     document.getElementById('feedbackText').style.color = 'var(--text-dim)';
     document.getElementById('fbUserAnswer').textContent = '(skipped)';
     document.getElementById('fbBestAnswer').textContent = s.good_responses[0];
+    document.getElementById('fbDetail').style.display = 'none';
     document.getElementById('submitBtn').disabled = true;
 }
 
 function nextRound() {
     idx++;
+    saveSession();
     showScene();
 }
 
 function showComplete() {
+    clearSession();
     document.getElementById('sceneArea').style.display = 'none';
     document.getElementById('talkHeader').style.display = 'none';
     document.getElementById('completeArea').style.display = '';
@@ -172,6 +196,13 @@ function showComplete() {
 // Enter key to submit
 document.getElementById('userInput').addEventListener('keydown', e => {
     if (e.key === 'Enter') submitAnswer();
+});
+
+// Warn before leaving during active session
+window.addEventListener('beforeunload', e => {
+    if (idx > 0 && idx < scenarios.length) {
+        e.preventDefault();
+    }
 });
 
 showScene();

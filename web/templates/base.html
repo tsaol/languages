@@ -280,10 +280,34 @@
 
         /* Scrollbar */
         ::-webkit-scrollbar { width: 0; }
+
+        /* Theme toggle */
+        .theme-toggle {
+            position: fixed;
+            top: 12px;
+            right: 16px;
+            z-index: 1001;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+        .theme-toggle:active { transform: scale(0.9); }
     </style>
     {% block head %}{% endblock %}
 </head>
 <body>
+    <div class="theme-toggle" id="themeToggle" onclick="toggleTheme()">
+        <span id="themeIcon">☀️</span>
+    </div>
+
     {% block body %}{% endblock %}
 
     <nav class="nav-bar">
@@ -299,18 +323,12 @@
             <span class="nav-icon">📚</span>
             <span>Vocab</span>
         </a>
-        <a href="javascript:void(0)" class="nav-item" onclick="toggleTheme()">
-            <span class="nav-icon" id="themeIcon">☀️</span>
-            <span>Theme</span>
-        </a>
     </nav>
     <script>
     (function(){
         const t = localStorage.getItem('theme') || 'dark';
         document.documentElement.setAttribute('data-theme', t);
-        document.addEventListener('DOMContentLoaded', function(){
-            document.getElementById('themeIcon').textContent = t === 'dark' ? '☀️' : '🌙';
-        });
+        document.getElementById('themeIcon').textContent = t === 'dark' ? '☀️' : '🌙';
     })();
     function toggleTheme(){
         const cur = document.documentElement.getAttribute('data-theme') || 'dark';
