@@ -127,6 +127,50 @@ def _make_hint(text: str) -> str:
     return f"{words[0]} {words[1]} ... {words[-1]}"
 
 
+def _is_junk_spelling(wrong: str, right: str) -> bool:
+    """Filter out non-spelling junk pairs."""
+    wrong_c = wrong.lower().strip('.,?!:;')
+    right_c = right.lower().strip('.,?!:;')
+
+    # Same word (just punctuation diff)
+    if wrong_c == right_c:
+        return True
+
+    # Too short to be meaningful
+    if len(wrong_c) <= 2 or len(right_c) <= 2:
+        return True
+
+    # Technical terms / proper nouns that don't need spelling practice
+    junk_words = {
+        's3', 'aws', 'ec2', 'url', 'api', 'sdk', 'cli', 'ssh', 'cdn',
+        'json', 'yaml', 'html', 'css', 'jsx', 'tsx', 'sql', 'pdf',
+        'github', 'claude', 'tavily', 'perplexity', 'zhihu', 'toutiao',
+        'cloudwatch', 'sagemaker', 'bedrock', 'litellm', 'openai',
+        'hottrend', 'openclaw', 'mcp', 'llm', 'gpt',
+    }
+    if wrong_c in junk_words or right_c in junk_words:
+        return True
+
+    # Grammar changes, not spelling (tense, form changes)
+    grammar_pairs = {
+        ('check', 'checked'), ('upload', 'uploaded'), ('merge', 'merged'),
+        ('sync', 'synced'), ('deploy', 'deployed'), ('name', 'named'),
+        ('detail', 'detailed'), ('monitor', 'monitoring'), ('track', 'tracks'),
+        ('write', 'writing'), ('in', 'on'), ('to', 'into'), ('a', 'an'),
+        ('an', 'and'), ('would', 'could'), ('are', 'is'), ('have', 'have'),
+        ('any', 'anything'), ('set', 'i'), ('red', 'read'),
+        ('ok', 'ok'), ('codes', 'code'), ('list', 'list'),
+    }
+    if (wrong_c, right_c) in grammar_pairs or (right_c, wrong_c) in grammar_pairs:
+        return True
+
+    # Not a real typo if edit distance is too large relative to word length
+    if _is_typo(wrong_c, right_c) is False:
+        return True
+
+    return False
+
+
 def _extract_typos(original: str, corrected: str, explanation: str) -> List[Tuple[str, str]]:
     """Extract typo word pairs from original vs corrected."""
     pairs = []
@@ -139,7 +183,8 @@ def _extract_typos(original: str, corrected: str, explanation: str) -> List[Tupl
         for m in re.finditer(pat, explanation):
             wrong, right = m.group(1), m.group(2)
             if wrong.lower() != right.lower() and len(wrong) > 1:
-                pairs.append((wrong, right))
+                if not _is_junk_spelling(wrong, right):
+                    pairs.append((wrong, right))
 
     if not pairs:
         # Word-level diff
@@ -149,7 +194,7 @@ def _extract_typos(original: str, corrected: str, explanation: str) -> List[Tupl
         for op, i1, i2, j1, j2 in sm.get_opcodes():
             if op == 'replace':
                 for ow, cw in zip(orig_words[i1:i2], corr_words[j1:j2]):
-                    if ow != cw and len(ow) > 1 and _is_typo(ow, cw):
+                    if ow != cw and len(ow) > 1 and _is_typo(ow, cw) and not _is_junk_spelling(ow, cw):
                         pairs.append((ow, cw))
     return pairs
 
