@@ -6,11 +6,9 @@ from englearn.db import models
 
 
 QUALITY_MAP = {
-    '1': (1, 'Blackout - no idea'),
-    '2': (2, 'Wrong - but recognized after seeing answer'),
-    '3': (3, 'Correct - with difficulty'),
-    '4': (4, 'Correct - with some hesitation'),
-    '5': (5, 'Perfect - instant recall'),
+    '1': (1, "Don't know"),
+    '2': (3, 'Know it, but hesitated'),
+    '3': (5, 'Easy'),
 }
 
 
@@ -69,10 +67,10 @@ def run_review(deck: str = None, limit: int = 20):
             print()
 
             while True:
-                rating = input("  Your rating (1-5): ").strip()
+                rating = input("  Your rating (1-3):").strip()
                 if rating in QUALITY_MAP:
                     break
-                print("  Please enter 1-5.")
+                print("  Please enter 1, 2, or 3.")
 
             quality = QUALITY_MAP[rating][0]
             models.update_flashcard_sm2(card['id'], quality)
