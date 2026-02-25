@@ -52,7 +52,8 @@
             <div id="feedbackText" style="text-align:center; font-weight:600; margin-bottom:12px;"></div>
             <div style="font-size:0.85rem; color:var(--text-dim); margin-bottom:6px;">Your answer:</div>
             <div id="fbUserAnswer" style="font-size:0.95rem; margin-bottom:10px;"></div>
-            <div style="font-size:0.85rem; color:var(--accent); margin-bottom:6px;">Best response:</div>
+            <div id="fbDetail" style="display:none; font-size:0.85rem; color:var(--blue); margin-bottom:12px; padding:10px; background:var(--blue-dim); border-radius:8px;"></div>
+            <div style="font-size:0.85rem; color:var(--accent); margin-bottom:6px;">Better expression:</div>
             <div id="fbBestAnswer" style="font-size:0.95rem; font-weight:500;"></div>
         </div>
         <button onclick="nextRound()" class="btn btn-accent w-full mt-8">Next</button>
@@ -94,6 +95,7 @@ async function submitAnswer() {
     document.getElementById('submitBtn').disabled = true;
 
     const s = scenarios[idx];
+    document.getElementById('submitBtn').textContent = 'Scoring...';
     const resp = await fetch('/talk/answer', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -101,9 +103,12 @@ async function submitAnswer() {
             answer: input,
             good_responses: s.good_responses,
             context: s.context,
+            pattern: s.pattern,
+            ai_says: s.ai_says,
         })
     });
     const data = await resp.json();
+    document.getElementById('submitBtn').textContent = 'Send';
 
     answered++;
     if (data.is_correct) correct++;
@@ -114,11 +119,20 @@ async function submitAnswer() {
     document.getElementById('fbUserAnswer').textContent = input;
     document.getElementById('fbBestAnswer').textContent = data.best_response;
 
-    if (data.score >= 0.80) {
+    // Show LLM feedback
+    const fbDetail = document.getElementById('fbDetail');
+    if (data.feedback) {
+        fbDetail.textContent = data.feedback;
+        fbDetail.style.display = 'block';
+    } else {
+        fbDetail.style.display = 'none';
+    }
+
+    if (data.score >= 0.70) {
         document.getElementById('feedbackIcon').textContent = '✅';
         document.getElementById('feedbackText').textContent = 'Excellent!';
         document.getElementById('feedbackText').style.color = 'var(--accent)';
-    } else if (data.score >= 0.55) {
+    } else if (data.score >= 0.45) {
         document.getElementById('feedbackIcon').textContent = '⚠️';
         document.getElementById('feedbackText').textContent = 'Close! But can be better.';
         document.getElementById('feedbackText').style.color = 'var(--yellow)';

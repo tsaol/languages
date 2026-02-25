@@ -109,25 +109,29 @@ def talk_answer():
     user_answer = data.get("answer", "").strip()
     good_responses = data.get("good_responses", [])
     context = data.get("context", "")
+    pattern = data.get("pattern", "")
+    ai_says = data.get("ai_says", "")
 
-    from englearn.quiz.conversation import _score_response
-    score, best = _score_response(user_answer, good_responses)
-    is_correct = score >= 0.80
+    from englearn.scoring.llm_scorer import score_response
+    result = score_response(context, pattern, ai_says, user_answer, good_responses)
+
+    best = result.get("better_expression", good_responses[0] if good_responses else "")
 
     record_quiz_result(
         quiz_type='conversation',
         question=context,
         user_answer=user_answer,
         correct_answer=best,
-        is_correct=is_correct,
+        is_correct=result["is_correct"],
     )
-    record_daily_progress(quiz_taken=1, quiz_correct=1 if is_correct else 0)
+    record_daily_progress(quiz_taken=1, quiz_correct=1 if result["is_correct"] else 0)
 
     return jsonify({
         "ok": True,
-        "score": round(score, 2),
-        "is_correct": is_correct,
+        "score": result["score"],
+        "is_correct": result["is_correct"],
         "best_response": best,
+        "feedback": result.get("feedback", ""),
     })
 
 
