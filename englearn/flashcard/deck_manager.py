@@ -10,8 +10,10 @@ def generate_all_decks():
     """Generate all flashcard decks from log entries."""
     conn = get_connection()
     try:
-        # Clear existing flashcards
-        conn.execute("DELETE FROM flashcards")
+        # Clear existing non-vocab flashcards (keep vocab deck intact)
+        conn.execute("PRAGMA foreign_keys = OFF")
+        conn.execute("DELETE FROM flashcards WHERE deck != 'vocab'")
+        conn.execute("PRAGMA foreign_keys = ON")
         conn.commit()
     finally:
         conn.close()
