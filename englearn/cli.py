@@ -33,6 +33,22 @@ def cmd_vocab(args):
     print()
 
 
+def cmd_push(args):
+    """Push progress to Notion."""
+    from englearn.sync.progress_sync import push_progress
+    print()
+    push_progress()
+    print()
+
+
+def cmd_pull(args):
+    """Pull progress from Notion."""
+    from englearn.sync.progress_sync import pull_progress
+    print()
+    pull_progress()
+    print()
+
+
 def cmd_review(args):
     """Run flashcard review session."""
     from englearn.flashcard.engine import run_review, run_review_all
@@ -136,6 +152,10 @@ def main():
     # vocab
     sub.add_parser('vocab', help='Sync Notion vocabulary into flashcards')
 
+    # push / pull
+    sub.add_parser('push', help='Push progress to Notion (for cross-device sync)')
+    sub.add_parser('pull', help='Pull progress from Notion (on new device)')
+
     # review
     p_review = sub.add_parser('review', help='Flashcard review session')
     p_review.add_argument('--deck', '-d', type=str, default=None,
@@ -185,6 +205,8 @@ def main():
     commands = {
         'init': cmd_init,
         'sync': cmd_sync,
+        'push': cmd_push,
+        'pull': cmd_pull,
         'review': cmd_review,
         'quiz': cmd_quiz,
         'stats': cmd_stats,
