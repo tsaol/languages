@@ -240,7 +240,7 @@
         <div class="text-sm text-dim" style="margin-bottom: 24px;">
             No cards due for review{% if deck %} in the {{ deck }} deck{% endif %}. Come back later!
         </div>
-        <a href="/quiz?type=mixed&count=10" class="btn btn-accent">📝 Take a Quiz Instead</a>
+        <a href="/talk" class="btn btn-accent">💬 Practice Talking</a>
     </div>
     {% else %}
     <!-- Progress bar -->
@@ -289,7 +289,7 @@
         <div id="sessionStats" class="text-sm text-dim" style="margin-bottom: 24px;"></div>
         <div class="flex flex-col gap-8" style="max-width: 240px; margin: 0 auto;">
             <a href="/review{% if deck %}?deck={{ deck }}{% endif %}" class="btn btn-accent w-full">Review More</a>
-            <a href="/" class="btn btn-surface w-full">Back to Home</a>
+            <a href="/" class="btn btn-surface w-full">Back to Review</a>
         </div>
     </div>
     {% endif %}

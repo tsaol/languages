@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% set active_page = "talk" %}
+
+{% block title %}EngLearn - Talk{% endblock %}
+
+{% block body %}
+<div class="container fade-in">
+
+{% if not scenarios %}
+<div style="text-align:center; padding:60px 20px;">
+    <div style="font-size:3.5rem; margin-bottom:16px;">📭</div>
+    <div class="text-lg font-bold" style="margin-bottom:8px;">No scenarios available</div>
+    <div class="text-sm text-dim">Add more entries to english.log first.</div>
+</div>
+{% else %}
+
+<div id="talkHeader" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+    <h1 style="font-size:1.4em;">💬 Talk</h1>
+    <span class="badge badge-blue"><span id="roundNum">1</span> / {{ total }}</span>
+</div>
+
+<div class="progress-track mb-8">
+    <div class="progress-fill" id="progressFill" style="width:0%"></div>
+</div>
+
+<!-- Scenario card -->
+<div id="sceneArea">
+    <div class="card" style="margin-bottom:12px;">
+        <div class="card-title">Scenario</div>
+        <div id="sceneContext" style="font-size:0.95rem; margin-bottom:12px;"></div>
+        <div style="font-size:0.8rem; color:var(--accent);" id="scenePattern"></div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px; border-color: var(--blue); background: linear-gradient(145deg, #1a2027 0%, #1d232a 100%);">
+        <div style="font-size:0.7rem; color:var(--blue); font-weight:600; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:8px;">AI says</div>
+        <div id="aiSays" style="font-size:1rem; font-style:italic;"></div>
+    </div>
+
+    <!-- Input -->
+    <div style="position:relative; margin-bottom:12px;">
+        <input type="text" id="userInput" placeholder="Type your response in English..."
+            style="width:100%; padding:14px; background:var(--surface2); border:1px solid var(--border); border-radius:10px; color:var(--text); font-size:1rem; outline:none;"
+            autocomplete="off">
+    </div>
+    <button id="submitBtn" onclick="submitAnswer()" class="btn btn-accent w-full" style="margin-bottom:8px;">Send</button>
+    <button onclick="skipRound()" class="btn btn-surface w-full" style="font-size:0.85rem;">Skip</button>
+
+    <!-- Feedback (hidden) -->
+    <div id="feedback" style="display:none; margin-top:16px;">
+        <div class="card" id="feedbackCard">
+            <div id="feedbackIcon" style="font-size:2rem; text-align:center; margin-bottom:8px;"></div>
+            <div id="feedbackText" style="text-align:center; font-weight:600; margin-bottom:12px;"></div>
+            <div style="font-size:0.85rem; color:var(--text-dim); margin-bottom:6px;">Your answer:</div>
+            <div id="fbUserAnswer" style="font-size:0.95rem; margin-bottom:10px;"></div>
+            <div style="font-size:0.85rem; color:var(--accent); margin-bottom:6px;">Best response:</div>
+            <div id="fbBestAnswer" style="font-size:0.95rem; font-weight:500;"></div>
+        </div>
+        <button onclick="nextRound()" class="btn btn-accent w-full mt-8">Next</button>
+    </div>
+</div>
+
+<!-- Complete (hidden) -->
+<div id="completeArea" style="display:none; text-align:center; padding:40px 0;">
+    <div style="font-size:3.5rem; margin-bottom:16px;">🏆</div>
+    <div class="text-lg font-bold" style="margin-bottom:8px;">Session Complete!</div>
+    <div id="completeStats" class="text-sm text-dim" style="margin-bottom:24px;"></div>
+    <a href="/talk" class="btn btn-accent" style="margin-right:8px;">Practice Again</a>
+    <a href="/" class="btn btn-surface">Review Cards</a>
+</div>
+
+<script>
+const scenarios = {{ scenarios | tojson }};
+let idx = 0;
+let correct = 0;
+let answered = 0;
+
+function showScene() {
+    if (idx >= scenarios.length) { showComplete(); return; }
+    const s = scenarios[idx];
+    document.getElementById('roundNum').textContent = idx + 1;
+    document.getElementById('sceneContext').textContent = s.context;
+    document.getElementById('scenePattern').textContent = '🎯 ' + s.pattern;
+    document.getElementById('aiSays').textContent = '"' + s.ai_says + '"';
+    document.getElementById('userInput').value = '';
+    document.getElementById('feedback').style.display = 'none';
+    document.getElementById('submitBtn').disabled = false;
+    document.getElementById('userInput').focus();
+    document.getElementById('progressFill').style.width = (idx / scenarios.length * 100) + '%';
+}
+
+async function submitAnswer() {
+    const input = document.getElementById('userInput').value.trim();
+    if (!input) return;
+    document.getElementById('submitBtn').disabled = true;
+
+    const s = scenarios[idx];
+    const resp = await fetch('/talk/answer', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            answer: input,
+            good_responses: s.good_responses,
+            context: s.context,
+        })
+    });
+    const data = await resp.json();
+
+    answered++;
+    if (data.is_correct) correct++;
+
+    // Show feedback
+    const fb = document.getElementById('feedback');
+    fb.style.display = 'block';
+    document.getElementById('fbUserAnswer').textContent = input;
+    document.getElementById('fbBestAnswer').textContent = data.best_response;
+
+    if (data.score >= 0.80) {
+        document.getElementById('feedbackIcon').textContent = '✅';
+        document.getElementById('feedbackText').textContent = 'Excellent!';
+        document.getElementById('feedbackText').style.color = 'var(--accent)';
+    } else if (data.score >= 0.55) {
+        document.getElementById('feedbackIcon').textContent = '⚠️';
+        document.getElementById('feedbackText').textContent = 'Close! But can be better.';
+        document.getElementById('feedbackText').style.color = 'var(--yellow)';
+    } else {
+        document.getElementById('feedbackIcon').textContent = '❌';
+        document.getElementById('feedbackText').textContent = 'Not quite. Study the example.';
+        document.getElementById('feedbackText').style.color = 'var(--red)';
+    }
+}
+
+function skipRound() {
+    const s = scenarios[idx];
+    document.getElementById('feedback').style.display = 'block';
+    document.getElementById('feedbackIcon').textContent = '⏭️';
+    document.getElementById('feedbackText').textContent = 'Skipped';
+    document.getElementById('feedbackText').style.color = 'var(--text-dim)';
+    document.getElementById('fbUserAnswer').textContent = '(skipped)';
+    document.getElementById('fbBestAnswer').textContent = s.good_responses[0];
+    document.getElementById('submitBtn').disabled = true;
+}
+
+function nextRound() {
+    idx++;
+    showScene();
+}
+
+function showComplete() {
+    document.getElementById('sceneArea').style.display = 'none';
+    document.getElementById('talkHeader').style.display = 'none';
+    document.getElementById('completeArea').style.display = '';
+    const pct = answered > 0 ? Math.round(correct / answered * 100) : 0;
+    document.getElementById('completeStats').innerHTML =
+        answered + ' rounds, <strong>' + pct + '%</strong> accuracy.';
+    document.getElementById('progressFill').style.width = '100%';
+}
+
+// Enter key to submit
+document.getElementById('userInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') submitAnswer();
+});
+
+showScene();
+</script>
+{% endif %}
+
+</div>
+{% endblock %}

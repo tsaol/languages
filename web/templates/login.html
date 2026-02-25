@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>EngLearn - Login</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: #0f1117;
+            color: #e4e4e7;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .login-box {
+            background: #1a1d27;
+            border: 1px solid #2e3145;
+            border-radius: 16px;
+            padding: 32px 28px;
+            width: 100%;
+            max-width: 360px;
+        }
+        .login-box h1 {
+            font-size: 1.5rem;
+            text-align: center;
+            margin-bottom: 8px;
+        }
+        .login-box .sub {
+            text-align: center;
+            color: #8b8d9e;
+            font-size: 0.85rem;
+            margin-bottom: 24px;
+        }
+        .field {
+            margin-bottom: 14px;
+        }
+        .field input {
+            width: 100%;
+            padding: 12px 14px;
+            background: #242736;
+            border: 1px solid #2e3145;
+            border-radius: 10px;
+            color: #e4e4e7;
+            font-size: 1rem;
+            outline: none;
+        }
+        .field input:focus {
+            border-color: #4ade80;
+        }
+        .error {
+            color: #f87171;
+            font-size: 0.85rem;
+            text-align: center;
+            margin-bottom: 12px;
+        }
+        .login-btn {
+            width: 100%;
+            padding: 13px;
+            background: #4ade80;
+            color: #0f1117;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 4px;
+        }
+        .login-btn:active { opacity: 0.8; }
+    </style>
+</head>
+<body>
+    <form class="login-box" method="POST">
+        <h1>🎴 EngLearn</h1>
+        <div class="sub">Sign in to continue</div>
+        {% if error %}<div class="error">{{ error }}</div>{% endif %}
+        <div class="field">
+            <input type="text" name="username" placeholder="Username" autofocus required>
+        </div>
+        <div class="field">
+            <input type="password" name="password" placeholder="Password" required>
+        </div>
+        <button type="submit" class="login-btn">Sign In</button>
+    </form>
+</body>
+</html>
