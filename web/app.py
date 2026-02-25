@@ -357,6 +357,52 @@ def api_progress():
     return jsonify(get_progress_history(days))
 
 
+@app.route("/api/sync-log", methods=["POST"])
+def api_sync_log():
+    """Receive incremental english.log lines and process into flashcards."""
+    data = request.get_json()
+    lines = data.get("lines", [])
+    if not lines:
+        return jsonify({"error": "no lines provided"}), 400
+
+    from englearn.parser.log_parser import _parse_line
+    from englearn.parser.categorizer import categorize
+    from englearn.db.models import insert_entry, get_sync_state, set_sync_state
+    from englearn.db.database import init_db
+    from englearn.flashcard.deck_manager import generate_all_decks
+
+    init_db()
+    last_line = int(get_sync_state('last_line') or 0)
+
+    imported = 0
+    errors = 0
+    for line in lines:
+        last_line += 1
+        entry = _parse_line(line, last_line)
+        if entry:
+            cats = categorize(entry)
+            insert_entry(entry, cats)
+            imported += 1
+            if not entry.is_correct:
+                errors += 1
+
+    if imported > 0:
+        set_sync_state('last_line', str(last_line))
+        # Append to local english.log
+        log_path = os.path.join(os.path.expanduser("~"), "english.log")
+        with open(log_path, 'a', encoding='utf-8') as f:
+            for line in lines:
+                if line.strip():
+                    f.write(line if line.endswith('\n') else line + '\n')
+        # Regenerate flashcards
+        try:
+            generate_all_decks()
+        except Exception:
+            pass  # non-critical
+
+    return jsonify({"ok": True, "imported": imported, "errors": errors})
+
+
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
