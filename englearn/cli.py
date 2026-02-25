@@ -20,8 +20,16 @@ def cmd_init(args):
 def cmd_sync(args):
     """Sync new entries from english.log."""
     from englearn.sync.sync import incremental_sync
-    print("\n  Syncing...")
+    print("\n  Syncing english.log...")
     incremental_sync()
+    print()
+
+
+def cmd_vocab(args):
+    """Sync Notion vocabulary and create flashcards."""
+    from englearn.sync.notion_sync import sync_notion_to_flashcards
+    print("\n  Syncing Notion vocabulary...")
+    sync_notion_to_flashcards()
     print()
 
 
@@ -125,6 +133,9 @@ def main():
     # sync
     sub.add_parser('sync', help='Sync new entries from english.log')
 
+    # vocab
+    sub.add_parser('vocab', help='Sync Notion vocabulary into flashcards')
+
     # review
     p_review = sub.add_parser('review', help='Flashcard review session')
     p_review.add_argument('--deck', '-d', type=str, default=None,
@@ -181,6 +192,7 @@ def main():
         'decks': cmd_decks,
         'search': cmd_search,
         'talk': cmd_talk,
+        'vocab': cmd_vocab,
         'weak': cmd_weak,
     }
     commands[args.command](args)
