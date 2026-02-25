@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>{% block title %}EngLearn{% endblock %}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        :root {
+            --bg: #0f1117;
+            --surface: #1a1d27;
+            --surface2: #242736;
+            --border: #2e3145;
+            --text: #e4e4e7;
+            --text-dim: #8b8d9e;
+            --accent: #4ade80;
+            --accent-dim: rgba(74, 222, 128, 0.15);
+            --red: #f87171;
+            --red-dim: rgba(248, 113, 113, 0.15);
+            --yellow: #fbbf24;
+            --yellow-dim: rgba(251, 191, 36, 0.15);
+            --blue: #60a5fa;
+            --blue-dim: rgba(96, 165, 250, 0.15);
+            --radius: 14px;
+            --radius-sm: 10px;
+        }
+
+        html {
+            font-size: 16px;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+            min-height: 100vh;
+            padding-bottom: 80px;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .page-header {
+            padding: 20px 20px 12px;
+            position: sticky;
+            top: 0;
+            background: var(--bg);
+            z-index: 100;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .page-header h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        .page-header .subtitle {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            margin-top: 2px;
+        }
+
+        .container {
+            padding: 16px 20px;
+            max-width: 480px;
+            margin: 0 auto;
+        }
+
+        /* Navigation */
+        .nav-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: space-around;
+            padding: 8px 0;
+            padding-bottom: max(8px, env(safe-area-inset-bottom));
+            z-index: 1000;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            background: rgba(26, 29, 39, 0.92);
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-decoration: none;
+            color: var(--text-dim);
+            font-size: 0.65rem;
+            font-weight: 500;
+            padding: 4px 16px;
+            border-radius: 12px;
+            transition: all 0.2s;
+            gap: 2px;
+        }
+
+        .nav-item.active {
+            color: var(--accent);
+        }
+
+        .nav-item .nav-icon {
+            font-size: 1.4rem;
+            line-height: 1.2;
+        }
+
+        .nav-item:active {
+            transform: scale(0.92);
+        }
+
+        /* Cards */
+        .card {
+            background: var(--surface);
+            border-radius: var(--radius);
+            padding: 18px;
+            margin-bottom: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .card-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 10px;
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 24px;
+            border-radius: var(--radius-sm);
+            border: none;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-decoration: none;
+            color: var(--text);
+            gap: 6px;
+        }
+
+        .btn:active {
+            transform: scale(0.97);
+        }
+
+        .btn-accent {
+            background: var(--accent);
+            color: #0f1117;
+        }
+
+        .btn-accent:hover {
+            background: #5ceb95;
+        }
+
+        .btn-surface {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+        }
+
+        .btn-sm {
+            padding: 8px 16px;
+            font-size: 0.8rem;
+            border-radius: 8px;
+        }
+
+        /* Progress bar */
+        .progress-track {
+            height: 6px;
+            background: var(--surface2);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--accent);
+            border-radius: 3px;
+            transition: width 0.5s ease;
+        }
+
+        /* Badge */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            font-weight: 600;
+        }
+
+        .badge-green {
+            background: var(--accent-dim);
+            color: var(--accent);
+        }
+
+        .badge-red {
+            background: var(--red-dim);
+            color: var(--red);
+        }
+
+        .badge-yellow {
+            background: var(--yellow-dim);
+            color: var(--yellow);
+        }
+
+        .badge-blue {
+            background: var(--blue-dim);
+            color: var(--blue);
+        }
+
+        /* Utility */
+        .flex { display: flex; }
+        .flex-col { flex-direction: column; }
+        .items-center { align-items: center; }
+        .justify-between { justify-content: space-between; }
+        .gap-8 { gap: 8px; }
+        .gap-12 { gap: 12px; }
+        .gap-16 { gap: 16px; }
+        .mt-8 { margin-top: 8px; }
+        .mt-12 { margin-top: 12px; }
+        .mt-16 { margin-top: 16px; }
+        .mb-8 { margin-bottom: 8px; }
+        .w-full { width: 100%; }
+        .text-center { text-align: center; }
+        .text-dim { color: var(--text-dim); }
+        .text-accent { color: var(--accent); }
+        .text-sm { font-size: 0.8rem; }
+        .text-xs { font-size: 0.72rem; }
+        .text-lg { font-size: 1.25rem; }
+        .text-2xl { font-size: 1.75rem; }
+        .text-3xl { font-size: 2.25rem; }
+        .font-bold { font-weight: 700; }
+        .font-medium { font-weight: 500; }
+        .hidden { display: none; }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 0; }
+    </style>
+    {% block head %}{% endblock %}
+</head>
+<body>
+    {% block body %}{% endblock %}
+
+    <nav class="nav-bar">
+        <a href="/" class="nav-item {% if active_page == 'dashboard' %}active{% endif %}">
+            <span class="nav-icon">📊</span>
+            <span>Home</span>
+        </a>
+        <a href="/review" class="nav-item {% if active_page == 'review' %}active{% endif %}">
+            <span class="nav-icon">🎴</span>
+            <span>Review</span>
+        </a>
+        <a href="/quiz" class="nav-item {% if active_page == 'quiz' %}active{% endif %}">
+            <span class="nav-icon">📝</span>
+            <span>Quiz</span>
+        </a>
+        <a href="/stats" class="nav-item {% if active_page == 'stats' %}active{% endif %}">
+            <span class="nav-icon">📈</span>
+            <span>Stats</span>
+        </a>
+    </nav>
+</body>
+</html>

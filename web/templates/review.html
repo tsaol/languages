@@ -1,0 +1,401 @@
+{% extends "base.html" %}
+{% set active_page = "review" %}
+
+{% block title %}EngLearn - Review{% endblock %}
+
+{% block head %}
+<style>
+    /* Flashcard flip */
+    .flashcard-container {
+        perspective: 1000px;
+        width: 100%;
+        min-height: 280px;
+        margin: 16px 0;
+        cursor: pointer;
+    }
+
+    .flashcard {
+        position: relative;
+        width: 100%;
+        min-height: 280px;
+        transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        transform-style: preserve-3d;
+    }
+
+    .flashcard.flipped {
+        transform: rotateY(180deg);
+    }
+
+    .flashcard-face {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        min-height: 280px;
+        backface-visibility: hidden;
+        -webkit-backface-visibility: hidden;
+        border-radius: var(--radius);
+        padding: 28px 24px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        border: 1px solid var(--border);
+    }
+
+    .flashcard-front {
+        background: linear-gradient(145deg, var(--surface) 0%, var(--surface2) 100%);
+    }
+
+    .flashcard-back {
+        background: linear-gradient(145deg, #1a2720 0%, #1d2a23 100%);
+        border-color: var(--accent);
+        border-width: 1px;
+        transform: rotateY(180deg);
+    }
+
+    .flashcard-front .face-label {
+        color: var(--text-dim);
+    }
+
+    .flashcard-back .face-label {
+        color: var(--accent);
+    }
+
+    .face-label {
+        font-size: 0.65rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        margin-bottom: 16px;
+    }
+
+    .face-content {
+        font-size: 1.1rem;
+        line-height: 1.6;
+        font-weight: 500;
+        word-break: break-word;
+    }
+
+    .face-hint {
+        margin-top: 16px;
+        font-size: 0.78rem;
+        color: var(--text-dim);
+        font-style: italic;
+        max-width: 100%;
+        word-break: break-word;
+    }
+
+    .tap-hint {
+        font-size: 0.7rem;
+        color: var(--text-dim);
+        margin-top: 14px;
+        opacity: 0.6;
+    }
+
+    /* Rating buttons */
+    .rating-bar {
+        display: flex;
+        gap: 10px;
+        padding: 0;
+        width: 100%;
+    }
+
+    .rating-btn {
+        flex: 1;
+        padding: 14px 8px;
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--border);
+        background: var(--surface);
+        color: var(--text);
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .rating-btn:active {
+        transform: scale(0.95);
+    }
+
+    .rating-btn .rating-icon {
+        font-size: 1.3rem;
+    }
+
+    .rating-btn.r-fail {
+        border-color: rgba(248, 113, 113, 0.3);
+    }
+    .rating-btn.r-fail:active, .rating-btn.r-fail.pressed {
+        background: var(--red-dim);
+        border-color: var(--red);
+    }
+
+    .rating-btn.r-hard {
+        border-color: rgba(251, 191, 36, 0.3);
+    }
+    .rating-btn.r-hard:active, .rating-btn.r-hard.pressed {
+        background: var(--yellow-dim);
+        border-color: var(--yellow);
+    }
+
+    .rating-btn.r-easy {
+        border-color: rgba(74, 222, 128, 0.3);
+    }
+    .rating-btn.r-easy:active, .rating-btn.r-easy.pressed {
+        background: var(--accent-dim);
+        border-color: var(--accent);
+    }
+
+    /* Empty state */
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+    }
+
+    .empty-state .emoji {
+        font-size: 3.5rem;
+        margin-bottom: 16px;
+    }
+
+    /* Complete state */
+    .complete-state {
+        text-align: center;
+        padding: 40px 20px;
+    }
+
+    .complete-state .emoji {
+        font-size: 3.5rem;
+        margin-bottom: 16px;
+        animation: pulse 2s infinite;
+    }
+
+    /* Deck selector */
+    .deck-selector {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        padding: 2px 0;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .deck-selector::-webkit-scrollbar { display: none; }
+
+    .deck-chip {
+        padding: 7px 16px;
+        border-radius: 20px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        white-space: nowrap;
+        text-decoration: none;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        color: var(--text-dim);
+        transition: all 0.15s;
+    }
+
+    .deck-chip.active {
+        background: var(--accent-dim);
+        color: var(--accent);
+        border-color: var(--accent);
+    }
+
+    .deck-chip:active {
+        transform: scale(0.95);
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="page-header">
+    <div class="flex justify-between items-center">
+        <div>
+            <h1>Review</h1>
+            <div class="subtitle" id="reviewSubtitle">
+                {% if cards %}{{ total }} card{{ 's' if total != 1 else '' }} due{% else %}No cards due{% endif %}
+            </div>
+        </div>
+        <div id="progressBadge" class="badge badge-blue" {% if not cards %}style="display:none"{% endif %}>
+            <span id="currentIdx">1</span> / <span id="totalCount">{{ total }}</span>
+        </div>
+    </div>
+    <div class="deck-selector mt-8">
+        <a href="/review" class="deck-chip {{ 'active' if not deck else '' }}">All</a>
+        <a href="/review?deck=daily" class="deck-chip {{ 'active' if deck == 'daily' else '' }}">📅 Daily</a>
+        <a href="/review?deck=express" class="deck-chip {{ 'active' if deck == 'express' else '' }}">💬 Express</a>
+        <a href="/review?deck=vocab" class="deck-chip {{ 'active' if deck == 'vocab' else '' }}">📖 Vocab</a>
+    </div>
+</div>
+
+<div class="container">
+    {% if not cards %}
+    <!-- Empty state -->
+    <div class="empty-state fade-in">
+        <div class="emoji">🎉</div>
+        <div class="text-lg font-bold" style="margin-bottom: 8px;">All caught up!</div>
+        <div class="text-sm text-dim" style="margin-bottom: 24px;">
+            No cards due for review{% if deck %} in the {{ deck }} deck{% endif %}. Come back later!
+        </div>
+        <a href="/quiz?type=mixed&count=10" class="btn btn-accent">📝 Take a Quiz Instead</a>
+    </div>
+    {% else %}
+    <!-- Progress bar -->
+    <div class="progress-track mb-8" id="reviewProgress">
+        <div class="progress-fill" id="reviewProgressFill" style="width: 0%"></div>
+    </div>
+
+    <!-- Flashcard -->
+    <div id="cardArea">
+        <div class="flashcard-container" id="flashcardContainer" onclick="flipCard()">
+            <div class="flashcard" id="flashcard">
+                <div class="flashcard-face flashcard-front">
+                    <div class="face-label">Question</div>
+                    <div class="face-content" id="cardFront"></div>
+                    <div class="face-hint" id="cardHint"></div>
+                    <div class="tap-hint">Tap to reveal answer</div>
+                </div>
+                <div class="flashcard-face flashcard-back">
+                    <div class="face-label">Answer</div>
+                    <div class="face-content" id="cardBack"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Rating buttons (hidden until flipped) -->
+        <div class="rating-bar" id="ratingBar" style="opacity: 0; pointer-events: none; transition: opacity 0.3s;">
+            <button class="rating-btn r-fail" onclick="submitRating(1)">
+                <span class="rating-icon">❌</span>
+                <span>Don't know</span>
+            </button>
+            <button class="rating-btn r-hard" onclick="submitRating(2)">
+                <span class="rating-icon">🤔</span>
+                <span>Hesitated</span>
+            </button>
+            <button class="rating-btn r-easy" onclick="submitRating(3)">
+                <span class="rating-icon">✅</span>
+                <span>Easy</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Complete state (hidden) -->
+    <div id="completeState" class="complete-state fade-in" style="display: none;">
+        <div class="emoji">🏆</div>
+        <div class="text-lg font-bold" style="margin-bottom: 8px;">Session Complete!</div>
+        <div id="sessionStats" class="text-sm text-dim" style="margin-bottom: 24px;"></div>
+        <div class="flex flex-col gap-8" style="max-width: 240px; margin: 0 auto;">
+            <a href="/review{% if deck %}?deck={{ deck }}{% endif %}" class="btn btn-accent w-full">Review More</a>
+            <a href="/" class="btn btn-surface w-full">Back to Home</a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% if cards %}
+<script>
+(function() {
+    const cards = {{ cards | tojson }};
+    let idx = 0;
+    let isFlipped = false;
+    let isAnimating = false;
+    let sessionCorrect = 0;
+    let sessionTotal = 0;
+
+    function showCard() {
+        if (idx >= cards.length) {
+            showComplete();
+            return;
+        }
+        const card = cards[idx];
+        document.getElementById('cardFront').textContent = card.front;
+        document.getElementById('cardBack').textContent = card.back;
+        const hintEl = document.getElementById('cardHint');
+        if (card.hint) {
+            hintEl.textContent = card.hint;
+            hintEl.style.display = '';
+        } else {
+            hintEl.style.display = 'none';
+        }
+        document.getElementById('currentIdx').textContent = idx + 1;
+
+        // Reset flip
+        isFlipped = false;
+        document.getElementById('flashcard').classList.remove('flipped');
+        document.getElementById('ratingBar').style.opacity = '0';
+        document.getElementById('ratingBar').style.pointerEvents = 'none';
+
+        // Update progress
+        const pct = (idx / cards.length) * 100;
+        document.getElementById('reviewProgressFill').style.width = pct + '%';
+    }
+
+    window.flipCard = function() {
+        if (isAnimating) return;
+        if (isFlipped) return; // already flipped, wait for rating
+        isFlipped = true;
+        document.getElementById('flashcard').classList.add('flipped');
+        // Show rating buttons after flip animation
+        setTimeout(() => {
+            document.getElementById('ratingBar').style.opacity = '1';
+            document.getElementById('ratingBar').style.pointerEvents = 'auto';
+        }, 300);
+    };
+
+    window.submitRating = function(rating) {
+        if (isAnimating) return;
+        isAnimating = true;
+
+        const card = cards[idx];
+        sessionTotal++;
+        if (rating >= 2) sessionCorrect++;
+
+        // Visual feedback
+        const btns = document.querySelectorAll('.rating-btn');
+        btns.forEach(b => b.classList.remove('pressed'));
+        if (rating === 1) btns[0].classList.add('pressed');
+        else if (rating === 2) btns[1].classList.add('pressed');
+        else btns[2].classList.add('pressed');
+
+        fetch('/review/answer', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({card_id: card.id, rating: rating})
+        }).then(r => r.json()).then(() => {
+            setTimeout(() => {
+                idx++;
+                isAnimating = false;
+                showCard();
+            }, 350);
+        }).catch(() => {
+            isAnimating = false;
+            idx++;
+            showCard();
+        });
+    };
+
+    function showComplete() {
+        document.getElementById('cardArea').style.display = 'none';
+        document.getElementById('reviewProgress').style.display = 'none';
+        document.getElementById('progressBadge').style.display = 'none';
+        const completeEl = document.getElementById('completeState');
+        completeEl.style.display = '';
+
+        const pct = sessionTotal > 0 ? Math.round(sessionCorrect / sessionTotal * 100) : 0;
+        document.getElementById('sessionStats').innerHTML =
+            'You reviewed <strong>' + sessionTotal + '</strong> card' + (sessionTotal !== 1 ? 's' : '') +
+            ' with <strong>' + pct + '%</strong> accuracy.';
+
+        // Fill progress bar
+        document.getElementById('reviewProgressFill').style.width = '100%';
+        document.getElementById('reviewSubtitle').textContent = 'Session complete';
+    }
+
+    showCard();
+})();
+</script>
+{% endif %}
+{% endblock %}

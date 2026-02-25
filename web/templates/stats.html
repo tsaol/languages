@@ -1,0 +1,371 @@
+{% extends "base.html" %}
+{% set active_page = "stats" %}
+
+{% block title %}EngLearn - Stats{% endblock %}
+
+{% block head %}
+<style>
+    .stat-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-bottom: 16px;
+    }
+
+    .stat-box {
+        background: var(--surface);
+        border-radius: var(--radius);
+        padding: 16px;
+        border: 1px solid var(--border);
+        text-align: center;
+    }
+
+    .stat-value {
+        font-size: 1.75rem;
+        font-weight: 800;
+        line-height: 1.2;
+    }
+
+    .stat-label {
+        font-size: 0.7rem;
+        color: var(--text-dim);
+        margin-top: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-weight: 500;
+    }
+
+    /* Chart bars */
+    .chart-section {
+        background: var(--surface);
+        border-radius: var(--radius);
+        padding: 18px;
+        border: 1px solid var(--border);
+        margin-bottom: 12px;
+    }
+
+    .chart-title {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-bottom: 14px;
+    }
+
+    .bar-row {
+        display: flex;
+        align-items: center;
+        margin-bottom: 10px;
+        gap: 10px;
+    }
+
+    .bar-label {
+        font-size: 0.72rem;
+        color: var(--text-dim);
+        width: 42px;
+        text-align: right;
+        flex-shrink: 0;
+        font-weight: 500;
+    }
+
+    .bar-track {
+        flex: 1;
+        height: 22px;
+        background: var(--surface2);
+        border-radius: 6px;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .bar-fill {
+        height: 100%;
+        border-radius: 6px;
+        transition: width 0.6s ease;
+        position: relative;
+        min-width: 2px;
+    }
+
+    .bar-value {
+        font-size: 0.7rem;
+        font-weight: 600;
+        color: var(--text-dim);
+        width: 32px;
+        text-align: left;
+        flex-shrink: 0;
+    }
+
+    /* Category bars */
+    .cat-row {
+        display: flex;
+        align-items: center;
+        margin-bottom: 10px;
+        gap: 10px;
+    }
+
+    .cat-name {
+        font-size: 0.78rem;
+        font-weight: 500;
+        width: 100px;
+        text-align: right;
+        flex-shrink: 0;
+        color: var(--text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .cat-bar-track {
+        flex: 1;
+        height: 18px;
+        background: var(--surface2);
+        border-radius: 5px;
+        overflow: hidden;
+    }
+
+    .cat-bar-fill {
+        height: 100%;
+        border-radius: 5px;
+        transition: width 0.6s ease;
+    }
+
+    .cat-count {
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: var(--text-dim);
+        width: 32px;
+        flex-shrink: 0;
+    }
+
+    /* Weekly grid */
+    .weekly-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 6px;
+    }
+
+    .day-cell {
+        text-align: center;
+        padding: 8px 0;
+        border-radius: 8px;
+        background: var(--surface2);
+        border: 1px solid transparent;
+    }
+
+    .day-cell.active {
+        border-color: var(--accent);
+        background: var(--accent-dim);
+    }
+
+    .day-cell .day-name {
+        font-size: 0.6rem;
+        color: var(--text-dim);
+        font-weight: 500;
+        text-transform: uppercase;
+    }
+
+    .day-cell .day-count {
+        font-size: 0.85rem;
+        font-weight: 700;
+        margin-top: 2px;
+    }
+
+    .day-cell.active .day-count {
+        color: var(--accent);
+    }
+
+    /* Accuracy ring (pure CSS) */
+    .accuracy-ring {
+        position: relative;
+        width: 100px;
+        height: 100px;
+        margin: 0 auto 12px;
+    }
+
+    .accuracy-ring svg {
+        transform: rotate(-90deg);
+    }
+
+    .accuracy-ring .ring-bg {
+        fill: none;
+        stroke: var(--surface2);
+        stroke-width: 8;
+    }
+
+    .accuracy-ring .ring-fill {
+        fill: none;
+        stroke-width: 8;
+        stroke-linecap: round;
+        transition: stroke-dashoffset 1s ease;
+    }
+
+    .accuracy-center {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+    }
+
+    .accuracy-pct {
+        font-size: 1.4rem;
+        font-weight: 800;
+        line-height: 1;
+    }
+
+    .accuracy-label {
+        font-size: 0.6rem;
+        color: var(--text-dim);
+        text-transform: uppercase;
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="page-header">
+    <h1>Statistics</h1>
+    <div class="subtitle">Your learning journey</div>
+</div>
+
+<div class="container fade-in">
+
+    <!-- Top stats -->
+    <div class="stat-grid">
+        <div class="stat-box">
+            <div class="stat-value">{{ total_cards }}</div>
+            <div class="stat-label">Total Cards</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-value text-accent">{{ total_mastered }}</div>
+            <div class="stat-label">Mastered</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-value" style="color: var(--blue);">{{ accuracy.total }}</div>
+            <div class="stat-label">Quiz Answers</div>
+        </div>
+        <div class="stat-box">
+            {% set acc_color = 'var(--accent)' if accuracy.pct >= 70 else 'var(--yellow)' if accuracy.pct >= 40 else 'var(--red)' %}
+            <div class="stat-value" style="color: {{ acc_color }};">{{ accuracy.pct }}%</div>
+            <div class="stat-label">Quiz Accuracy</div>
+        </div>
+    </div>
+
+    <!-- Accuracy ring -->
+    <div class="chart-section" style="text-align: center;">
+        <div class="chart-title">Overall Accuracy</div>
+        {% set circumference = 283 %}
+        {% set offset = circumference - (circumference * accuracy.pct / 100) %}
+        {% set ring_color = '#4ade80' if accuracy.pct >= 70 else '#fbbf24' if accuracy.pct >= 40 else '#f87171' %}
+        <div class="accuracy-ring">
+            <svg width="100" height="100" viewBox="0 0 100 100">
+                <circle class="ring-bg" cx="50" cy="50" r="45"/>
+                <circle class="ring-fill" cx="50" cy="50" r="45"
+                    stroke="{{ ring_color }}"
+                    stroke-dasharray="{{ circumference }}"
+                    stroke-dashoffset="{{ offset }}"/>
+            </svg>
+            <div class="accuracy-center">
+                <div class="accuracy-pct" style="color: {{ ring_color }};">{{ accuracy.pct }}%</div>
+                <div class="accuracy-label">accuracy</div>
+            </div>
+        </div>
+        <div class="text-xs text-dim">{{ accuracy.correct }} correct / {{ accuracy.total }} total</div>
+    </div>
+
+    <!-- Weekly Activity -->
+    <div class="chart-section">
+        <div class="chart-title">This Week</div>
+        <div class="weekly-grid">
+            {% set day_names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] %}
+            {% for day in weekly %}
+            {% set total_activity = day.cards_reviewed + day.quiz_taken %}
+            <div class="day-cell {{ 'active' if total_activity > 0 else '' }}">
+                <div class="day-name">{{ day.date[5:] }}</div>
+                <div class="day-count">{{ total_activity }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Progress Chart (last 30 days) -->
+    {% if progress %}
+    <div class="chart-section">
+        <div class="chart-title">Daily Activity (last 30 days)</div>
+        {% set max_activity = 1 %}
+        {% for p in progress %}
+            {% set act = p.cards_reviewed + p.quiz_taken %}
+            {% if act > max_activity %}
+                {% set max_activity = act %}
+            {% endif %}
+        {% endfor %}
+        {% for p in progress %}
+        {% set act = p.cards_reviewed + p.quiz_taken %}
+        {% set pct = (act / max_activity * 100) | int %}
+        <div class="bar-row">
+            <div class="bar-label">{{ p.date[5:] }}</div>
+            <div class="bar-track">
+                <div class="bar-fill" style="width: {{ pct }}%; background: linear-gradient(90deg, var(--accent), var(--blue));"></div>
+            </div>
+            <div class="bar-value">{{ act }}</div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Error Categories -->
+    {% if categories %}
+    <div class="chart-section">
+        <div class="chart-title">Error Categories</div>
+        {% set max_cat = categories[0].count if categories else 1 %}
+        {% set cat_colors = ['#f87171', '#fbbf24', '#60a5fa', '#c084fc', '#fb923c', '#4ade80', '#f472b6', '#22d3ee', '#a78bfa', '#34d399'] %}
+        {% for cat in categories[:10] %}
+        {% set pct = (cat.count / max_cat * 100) | int %}
+        <div class="cat-row">
+            <div class="cat-name" title="{{ cat.category }}">{{ cat.category | replace('_', ' ') }}</div>
+            <div class="cat-bar-track">
+                <div class="cat-bar-fill" style="width: {{ pct }}%; background: {{ cat_colors[loop.index0 % cat_colors | length] }};"></div>
+            </div>
+            <div class="cat-count">{{ cat.count }}</div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Review Activity Breakdown -->
+    {% if progress %}
+    <div class="chart-section">
+        <div class="chart-title">Review vs Quiz</div>
+        {% set total_reviewed = progress | map(attribute='cards_reviewed') | sum %}
+        {% set total_quizzed = progress | map(attribute='quiz_taken') | sum %}
+        {% set grand_total = total_reviewed + total_quizzed %}
+        {% if grand_total > 0 %}
+        <div class="flex gap-16 items-center" style="margin-bottom: 12px;">
+            <div style="flex: 1;">
+                <div class="bar-track" style="height: 28px; display: flex; border-radius: 8px; overflow: hidden;">
+                    <div style="width: {{ (total_reviewed / grand_total * 100) | int }}%; background: var(--accent); height: 100%; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; color: #0f1117;">
+                        {% if total_reviewed > 0 %}{{ ((total_reviewed / grand_total * 100) | int) }}%{% endif %}
+                    </div>
+                    <div style="width: {{ (total_quizzed / grand_total * 100) | int }}%; background: var(--blue); height: 100%; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; color: #0f1117;">
+                        {% if total_quizzed > 0 %}{{ ((total_quizzed / grand_total * 100) | int) }}%{% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="flex gap-16">
+            <div class="flex items-center gap-8">
+                <div style="width: 10px; height: 10px; border-radius: 3px; background: var(--accent);"></div>
+                <span class="text-xs">Reviews ({{ total_reviewed }})</span>
+            </div>
+            <div class="flex items-center gap-8">
+                <div style="width: 10px; height: 10px; border-radius: 3px; background: var(--blue);"></div>
+                <span class="text-xs">Quizzes ({{ total_quizzed }})</span>
+            </div>
+        </div>
+        {% else %}
+        <div class="text-sm text-dim text-center" style="padding: 16px 0;">No activity yet. Start reviewing!</div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

@@ -1,0 +1,462 @@
+{% extends "base.html" %}
+{% set active_page = "quiz" %}
+
+{% block title %}EngLearn - Quiz{% endblock %}
+
+{% block head %}
+<style>
+    .quiz-card {
+        background: var(--surface);
+        border-radius: var(--radius);
+        padding: 24px;
+        border: 1px solid var(--border);
+        margin-bottom: 16px;
+    }
+
+    .quiz-question-label {
+        font-size: 0.65rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--text-dim);
+        margin-bottom: 14px;
+    }
+
+    .quiz-question-text {
+        font-size: 1.1rem;
+        font-weight: 500;
+        line-height: 1.6;
+        word-break: break-word;
+    }
+
+    .quiz-deck-badge {
+        display: inline-block;
+        font-size: 0.65rem;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 6px;
+        background: var(--surface2);
+        color: var(--text-dim);
+        text-transform: capitalize;
+        margin-top: 12px;
+    }
+
+    .answer-input-wrap {
+        position: relative;
+        margin-top: 16px;
+    }
+
+    .answer-input {
+        width: 100%;
+        background: var(--surface2);
+        border: 2px solid var(--border);
+        border-radius: var(--radius-sm);
+        color: var(--text);
+        font-size: 1rem;
+        padding: 14px 16px;
+        outline: none;
+        transition: border-color 0.2s;
+        font-family: inherit;
+    }
+
+    .answer-input:focus {
+        border-color: var(--accent);
+    }
+
+    .answer-input::placeholder {
+        color: var(--text-dim);
+        opacity: 0.5;
+    }
+
+    .submit-btn {
+        width: 100%;
+        padding: 14px;
+        border-radius: var(--radius-sm);
+        border: none;
+        background: var(--accent);
+        color: #0f1117;
+        font-size: 0.95rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.15s;
+        margin-top: 12px;
+    }
+
+    .submit-btn:active {
+        transform: scale(0.98);
+    }
+
+    .submit-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+
+    /* Result display */
+    .result-display {
+        margin-top: 16px;
+        border-radius: var(--radius-sm);
+        padding: 16px;
+        animation: fadeIn 0.3s ease;
+    }
+
+    .result-correct {
+        background: var(--accent-dim);
+        border: 1px solid rgba(74, 222, 128, 0.3);
+    }
+
+    .result-incorrect {
+        background: var(--red-dim);
+        border: 1px solid rgba(248, 113, 113, 0.3);
+    }
+
+    .result-icon {
+        font-size: 1.5rem;
+        margin-bottom: 6px;
+    }
+
+    .result-label {
+        font-weight: 700;
+        font-size: 0.9rem;
+        margin-bottom: 8px;
+    }
+
+    .result-correct .result-label { color: var(--accent); }
+    .result-incorrect .result-label { color: var(--red); }
+
+    .result-answer {
+        font-size: 0.85rem;
+        line-height: 1.5;
+        color: var(--text);
+    }
+
+    .result-answer strong {
+        color: var(--accent);
+    }
+
+    .next-btn {
+        width: 100%;
+        padding: 14px;
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--border);
+        background: var(--surface2);
+        color: var(--text);
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        margin-top: 12px;
+        transition: all 0.15s;
+    }
+
+    .next-btn:active {
+        transform: scale(0.98);
+    }
+
+    /* Score bar */
+    .score-bar {
+        display: flex;
+        gap: 4px;
+        margin-top: 4px;
+    }
+
+    .score-dot {
+        width: 100%;
+        height: 4px;
+        border-radius: 2px;
+        background: var(--surface2);
+        transition: background 0.3s;
+    }
+
+    .score-dot.correct { background: var(--accent); }
+    .score-dot.incorrect { background: var(--red); }
+
+    /* Quiz type selector */
+    .quiz-type-selector {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        padding: 2px 0;
+    }
+
+    .quiz-type-selector::-webkit-scrollbar { display: none; }
+
+    /* End screen */
+    .end-screen {
+        text-align: center;
+        padding: 30px 0;
+    }
+
+    .end-screen .big-score {
+        font-size: 3.5rem;
+        font-weight: 800;
+        line-height: 1;
+        margin: 16px 0 4px;
+    }
+
+    .end-results-list {
+        margin-top: 20px;
+        text-align: left;
+    }
+
+    .end-result-item {
+        padding: 12px 16px;
+        border-radius: var(--radius-sm);
+        background: var(--surface);
+        border: 1px solid var(--border);
+        margin-bottom: 8px;
+        font-size: 0.82rem;
+    }
+
+    .end-result-item.item-correct {
+        border-left: 3px solid var(--accent);
+    }
+
+    .end-result-item.item-incorrect {
+        border-left: 3px solid var(--red);
+    }
+
+    .end-result-q {
+        color: var(--text-dim);
+        margin-bottom: 4px;
+    }
+
+    .end-result-a {
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="page-header">
+    <div class="flex justify-between items-center">
+        <div>
+            <h1>Quiz</h1>
+            <div class="subtitle" id="quizSubtitle">
+                {% if cards %}{{ count }} question{{ 's' if count != 1 else '' }}{% else %}No cards available{% endif %}
+            </div>
+        </div>
+        <div id="scoreBadge" class="badge badge-green" {% if not cards %}style="display:none"{% endif %}>
+            <span id="scoreDisplay">0</span> / <span>{{ count }}</span>
+        </div>
+    </div>
+    <div class="quiz-type-selector mt-8">
+        <a href="/quiz?type=mixed&count=10" class="deck-chip {{ 'active' if quiz_type == 'mixed' else '' }}" style="padding: 7px 16px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; white-space: nowrap; text-decoration: none; border: 1px solid var(--border); background: var(--surface); color: var(--text-dim); {% if quiz_type == 'mixed' %}background: var(--accent-dim); color: var(--accent); border-color: var(--accent);{% endif %}">🎲 Mixed</a>
+        <a href="/quiz?type=daily&count=10" class="deck-chip {{ 'active' if quiz_type == 'daily' else '' }}" style="padding: 7px 16px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; white-space: nowrap; text-decoration: none; border: 1px solid var(--border); background: var(--surface); color: var(--text-dim); {% if quiz_type == 'daily' %}background: var(--accent-dim); color: var(--accent); border-color: var(--accent);{% endif %}">📅 Daily</a>
+        <a href="/quiz?type=express&count=10" class="deck-chip {{ 'active' if quiz_type == 'express' else '' }}" style="padding: 7px 16px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; white-space: nowrap; text-decoration: none; border: 1px solid var(--border); background: var(--surface); color: var(--text-dim); {% if quiz_type == 'express' %}background: var(--accent-dim); color: var(--accent); border-color: var(--accent);{% endif %}">💬 Express</a>
+        <a href="/quiz?type=vocab&count=10" class="deck-chip {{ 'active' if quiz_type == 'vocab' else '' }}" style="padding: 7px 16px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; white-space: nowrap; text-decoration: none; border: 1px solid var(--border); background: var(--surface); color: var(--text-dim); {% if quiz_type == 'vocab' %}background: var(--accent-dim); color: var(--accent); border-color: var(--accent);{% endif %}">📖 Vocab</a>
+    </div>
+</div>
+
+<div class="container">
+    {% if not cards %}
+    <div style="text-align: center; padding: 60px 20px;" class="fade-in">
+        <div style="font-size: 3.5rem; margin-bottom: 16px;">📭</div>
+        <div class="text-lg font-bold" style="margin-bottom: 8px;">No Cards Found</div>
+        <div class="text-sm text-dim" style="margin-bottom: 24px;">
+            There are no cards available for this quiz type.
+        </div>
+        <a href="/quiz?type=mixed&count=10" class="btn btn-accent">Try Mixed Quiz</a>
+    </div>
+    {% else %}
+
+    <!-- Score dots -->
+    <div class="score-bar" id="scoreDots">
+        {% for i in range(count) %}
+        <div class="score-dot" id="dot-{{ i }}"></div>
+        {% endfor %}
+    </div>
+
+    <!-- Quiz area -->
+    <div id="quizArea" class="mt-16">
+        <div class="quiz-card" id="questionCard">
+            <div class="quiz-question-label">Question <span id="qNum">1</span> of {{ count }}</div>
+            <div class="quiz-question-text" id="questionText"></div>
+            <div class="quiz-deck-badge" id="questionDeck"></div>
+        </div>
+
+        <div class="answer-input-wrap">
+            <input type="text" class="answer-input" id="answerInput"
+                   placeholder="Type your answer..."
+                   autocomplete="off" autocapitalize="off" spellcheck="false">
+        </div>
+
+        <button class="submit-btn" id="submitBtn" onclick="submitAnswer()">Check Answer</button>
+
+        <div id="resultArea"></div>
+        <button class="next-btn" id="nextBtn" onclick="nextQuestion()" style="display: none;">
+            Next Question →
+        </button>
+    </div>
+
+    <!-- End screen -->
+    <div id="endScreen" class="end-screen fade-in" style="display: none;">
+        <div style="font-size: 3rem;">
+            <span id="endEmoji"></span>
+        </div>
+        <div class="big-score" id="endScore"></div>
+        <div class="text-sm text-dim" id="endLabel"></div>
+
+        <div class="end-results-list" id="endResults"></div>
+
+        <div class="flex flex-col gap-8 mt-16" style="max-width: 280px; margin-left: auto; margin-right: auto;">
+            <a href="/quiz?type={{ quiz_type }}&count={{ count }}" class="btn btn-accent w-full">Try Again</a>
+            <a href="/" class="btn btn-surface w-full">Back to Home</a>
+        </div>
+    </div>
+
+    {% endif %}
+</div>
+
+{% if cards %}
+<script>
+(function() {
+    const cards = {{ cards | tojson }};
+    const quizType = '{{ quiz_type }}';
+    let idx = 0;
+    let score = 0;
+    let answered = false;
+    const results = [];
+
+    function showQuestion() {
+        if (idx >= cards.length) {
+            showEnd();
+            return;
+        }
+        const card = cards[idx];
+        document.getElementById('qNum').textContent = idx + 1;
+        document.getElementById('questionText').textContent = card.front;
+        document.getElementById('questionDeck').textContent = card.deck;
+        document.getElementById('answerInput').value = '';
+        document.getElementById('answerInput').disabled = false;
+        document.getElementById('answerInput').focus();
+        document.getElementById('submitBtn').style.display = '';
+        document.getElementById('submitBtn').disabled = false;
+        document.getElementById('nextBtn').style.display = 'none';
+        document.getElementById('resultArea').innerHTML = '';
+        answered = false;
+    }
+
+    window.submitAnswer = function() {
+        if (answered) return;
+        const input = document.getElementById('answerInput');
+        const userAnswer = input.value.trim();
+        if (!userAnswer) {
+            input.style.borderColor = 'var(--red)';
+            setTimeout(() => { input.style.borderColor = 'var(--border)'; }, 800);
+            return;
+        }
+
+        answered = true;
+        input.disabled = true;
+        document.getElementById('submitBtn').disabled = true;
+
+        const card = cards[idx];
+
+        fetch('/quiz/answer', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                card_id: card.id,
+                answer: userAnswer,
+                correct_answer: card.back,
+                question: card.front,
+                quiz_type: quizType
+            })
+        }).then(r => r.json()).then(data => {
+            const dot = document.getElementById('dot-' + idx);
+
+            results.push({
+                question: card.front,
+                userAnswer: userAnswer,
+                correctAnswer: card.back,
+                isCorrect: data.is_correct
+            });
+
+            if (data.is_correct) {
+                score++;
+                dot.classList.add('correct');
+                document.getElementById('resultArea').innerHTML =
+                    '<div class="result-display result-correct">' +
+                    '<div class="result-icon">✅</div>' +
+                    '<div class="result-label">Correct!</div>' +
+                    '<div class="result-answer">Your answer: <strong>' + escHtml(userAnswer) + '</strong></div>' +
+                    '</div>';
+            } else {
+                dot.classList.add('incorrect');
+                document.getElementById('resultArea').innerHTML =
+                    '<div class="result-display result-incorrect">' +
+                    '<div class="result-icon">❌</div>' +
+                    '<div class="result-label">Not quite</div>' +
+                    '<div class="result-answer">' +
+                    'Your answer: ' + escHtml(userAnswer) + '<br>' +
+                    'Correct: <strong>' + escHtml(data.correct_answer) + '</strong>' +
+                    '</div></div>';
+            }
+
+            document.getElementById('scoreDisplay').textContent = score;
+            document.getElementById('submitBtn').style.display = 'none';
+            document.getElementById('nextBtn').style.display = '';
+        }).catch(() => {
+            answered = false;
+            input.disabled = false;
+            document.getElementById('submitBtn').disabled = false;
+        });
+    };
+
+    window.nextQuestion = function() {
+        idx++;
+        showQuestion();
+    };
+
+    function showEnd() {
+        document.getElementById('quizArea').style.display = 'none';
+        document.getElementById('scoreDots').style.display = 'none';
+        document.getElementById('scoreBadge').style.display = 'none';
+        const endEl = document.getElementById('endScreen');
+        endEl.style.display = '';
+
+        const pct = Math.round(score / cards.length * 100);
+        document.getElementById('endScore').textContent = pct + '%';
+        document.getElementById('endScore').style.color =
+            pct >= 80 ? 'var(--accent)' : pct >= 50 ? 'var(--yellow)' : 'var(--red)';
+        document.getElementById('endEmoji').textContent =
+            pct >= 90 ? '🏆' : pct >= 70 ? '👏' : pct >= 50 ? '💪' : '📚';
+        document.getElementById('endLabel').textContent =
+            score + ' correct out of ' + cards.length;
+
+        document.getElementById('quizSubtitle').textContent = 'Quiz complete';
+
+        let html = '';
+        results.forEach(function(r) {
+            html += '<div class="end-result-item ' + (r.isCorrect ? 'item-correct' : 'item-incorrect') + '">' +
+                '<div class="end-result-q">' + escHtml(r.question) + '</div>' +
+                '<div class="end-result-a">' +
+                (r.isCorrect ? '✅ ' : '❌ ') +
+                escHtml(r.userAnswer) +
+                (r.isCorrect ? '' : ' → <span style="color:var(--accent)">' + escHtml(r.correctAnswer) + '</span>') +
+                '</div></div>';
+        });
+        document.getElementById('endResults').innerHTML = html;
+    }
+
+    function escHtml(s) {
+        const d = document.createElement('div');
+        d.textContent = s;
+        return d.innerHTML;
+    }
+
+    // Allow Enter to submit
+    document.getElementById('answerInput').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            if (answered) {
+                nextQuestion();
+            } else {
+                submitAnswer();
+            }
+        }
+    });
+
+    showQuestion();
+})();
+</script>
+{% endif %}
+{% endblock %}

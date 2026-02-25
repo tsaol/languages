@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% set active_page = "dashboard" %}
+
+{% block title %}EngLearn - Dashboard{% endblock %}
+
+{% block body %}
+<div class="page-header">
+    <h1>EngLearn</h1>
+    <div class="subtitle">English learning, one card at a time</div>
+</div>
+
+<div class="container fade-in">
+
+    <!-- Streak & Today Summary -->
+    <div class="card" style="background: linear-gradient(135deg, var(--surface) 0%, var(--surface2) 100%);">
+        <div class="flex justify-between items-center">
+            <div>
+                <div class="text-xs text-dim font-medium" style="text-transform: uppercase; letter-spacing: 0.08em;">Current Streak</div>
+                <div class="flex items-center gap-8 mt-8">
+                    <span class="text-3xl font-bold text-accent">{{ streak }}</span>
+                    <span class="text-dim text-sm">day{{ 's' if streak != 1 else '' }}</span>
+                </div>
+            </div>
+            <div style="font-size: 2.8rem; opacity: 0.9;">
+                {% if streak >= 7 %}🔥{% elif streak >= 3 %}⚡{% elif streak >= 1 %}✨{% else %}🌱{% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Today's Progress -->
+    <div class="card">
+        <div class="card-title">Today's Progress</div>
+        <div class="flex justify-between items-center mb-8">
+            <span class="text-sm text-dim">{{ today.cards_reviewed }} cards reviewed</span>
+            <span class="text-sm font-bold text-accent">{{ total_due }} due</span>
+        </div>
+        <div class="progress-track">
+            {% set pct = ((today.cards_reviewed / total_due * 100) if total_due > 0 else 0) | int %}
+            {% set pct = [pct, 100] | min %}
+            <div class="progress-fill" style="width: {{ pct }}%"></div>
+        </div>
+        <div class="flex justify-between mt-8">
+            <span class="text-xs text-dim">
+                {% if today.cards_reviewed > 0 %}
+                    Accuracy: {{ ((today.cards_correct / today.cards_reviewed * 100) if today.cards_reviewed > 0 else 0) | int }}%
+                {% else %}
+                    Start reviewing to track accuracy
+                {% endif %}
+            </span>
+            <span class="text-xs text-dim">{{ pct }}%</span>
+        </div>
+    </div>
+
+    <!-- Deck Cards -->
+    <div class="card-title" style="padding: 0 2px; margin-bottom: 8px;">Decks</div>
+
+    {% set deck_icons = {'daily': '📅', 'express': '💬', 'vocab': '📖'} %}
+    {% set deck_colors = {'daily': '#60a5fa', 'express': '#fbbf24', 'vocab': '#c084fc'} %}
+    {% set deck_descriptions = {'daily': 'Corrections & fixes', 'express': 'Expressions & patterns', 'vocab': 'Words & vocabulary'} %}
+
+    {% for deck in decks %}
+    <div class="card" style="border-left: 3px solid {{ deck_colors.get(deck.deck, '#4ade80') }};">
+        <div class="flex justify-between items-center">
+            <div class="flex items-center gap-12">
+                <span style="font-size: 1.6rem;">{{ deck_icons.get(deck.deck, '📚') }}</span>
+                <div>
+                    <div class="font-bold" style="font-size: 0.95rem; text-transform: capitalize;">{{ deck.deck }}</div>
+                    <div class="text-xs text-dim">{{ deck_descriptions.get(deck.deck, '') }}</div>
+                </div>
+            </div>
+            {% if deck.due > 0 %}
+            <a href="/review?deck={{ deck.deck }}" class="btn btn-sm" style="background: {{ deck_colors.get(deck.deck, '#4ade80') }}22; color: {{ deck_colors.get(deck.deck, '#4ade80') }}; border: 1px solid {{ deck_colors.get(deck.deck, '#4ade80') }}44;">
+                Study {{ deck.due }}
+            </a>
+            {% else %}
+            <span class="badge badge-green">Done</span>
+            {% endif %}
+        </div>
+        <div class="flex gap-16 mt-12" style="padding-left: 44px;">
+            <div>
+                <div class="text-xs text-dim">Total</div>
+                <div class="font-bold text-sm">{{ deck.total }}</div>
+            </div>
+            <div>
+                <div class="text-xs text-dim">Due</div>
+                <div class="font-bold text-sm" style="color: {{ deck_colors.get(deck.deck, '#4ade80') }};">{{ deck.due }}</div>
+            </div>
+            <div>
+                <div class="text-xs text-dim">Mastered</div>
+                <div class="font-bold text-sm text-accent">{{ deck.mastered }}</div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    <!-- Quick Actions -->
+    <div class="card">
+        <div class="card-title">Quick Actions</div>
+        <div class="flex gap-8" style="flex-wrap: wrap;">
+            <a href="/review" class="btn btn-accent btn-sm" style="flex: 1; min-width: 120px;">
+                🎴 Review All
+            </a>
+            <a href="/quiz?type=mixed&count=10" class="btn btn-surface btn-sm" style="flex: 1; min-width: 120px;">
+                📝 Quick Quiz
+            </a>
+        </div>
+    </div>
+
+    <!-- Total Stats -->
+    <div class="card" style="text-align: center;">
+        <div class="flex justify-between" style="text-align: center;">
+            <div style="flex: 1;">
+                <div class="text-2xl font-bold">{{ total_cards }}</div>
+                <div class="text-xs text-dim">Total Cards</div>
+            </div>
+            <div style="width: 1px; background: var(--border);"></div>
+            <div style="flex: 1;">
+                <div class="text-2xl font-bold text-accent">{{ total_due }}</div>
+                <div class="text-xs text-dim">Due Today</div>
+            </div>
+            <div style="width: 1px; background: var(--border);"></div>
+            <div style="flex: 1;">
+                <div class="text-2xl font-bold" style="color: var(--yellow);">{{ today.quiz_taken }}</div>
+                <div class="text-xs text-dim">Quizzes</div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
