@@ -238,6 +238,103 @@ def stats():
     )
 
 
+@app.route("/vocab")
+def vocab():
+    """Vocabulary management page."""
+    conn = get_connection()
+    try:
+        words = conn.execute(
+            """SELECT f.id, f.front, f.back, f.hint, f.ease_factor, f.repetitions,
+                      f.next_review, f.interval_days
+               FROM flashcards f WHERE f.deck = 'vocab' ORDER BY f.id DESC"""
+        ).fetchall()
+        words = [dict(w) for w in words]
+        # Parse the word from front text "How do you say "X" in English?"
+        for w in words:
+            front = w['front']
+            if '"' in front:
+                parts = front.split('"')
+                if len(parts) >= 2:
+                    w['chinese'] = parts[1]
+                else:
+                    w['chinese'] = front
+            else:
+                w['chinese'] = front
+            w['word'] = w['back']
+            # category from hint
+            hint = w.get('hint', '')
+            w['category'] = hint.replace('Category: ', '') if hint.startswith('Category:') else ''
+    finally:
+        conn.close()
+    categories = sorted(set(w['category'] for w in words if w['category']))
+    return render_template("vocab.html", words=words, categories=categories, total=len(words))
+
+
+@app.route("/vocab/add", methods=["POST"])
+def vocab_add():
+    """Add a new word to vocab deck."""
+    data = request.get_json()
+    word = data.get("word", "").strip()
+    chinese = data.get("chinese", "").strip()
+    category = data.get("category", "").strip()
+
+    if not word or not chinese:
+        return jsonify({"error": "Word and Chinese meaning are required"}), 400
+
+    from englearn.db.models import insert_flashcard
+    card_id = insert_flashcard(
+        deck='vocab',
+        front=f'How do you say "{chinese}" in English?',
+        back=word,
+        hint=f"Category: {category}" if category else "",
+    )
+    return jsonify({"ok": True, "id": card_id, "word": word, "chinese": chinese})
+
+
+@app.route("/vocab/delete", methods=["POST"])
+def vocab_delete():
+    """Delete a word from vocab deck."""
+    data = request.get_json()
+    card_id = data.get("card_id")
+    if not card_id:
+        return jsonify({"error": "card_id required"}), 400
+
+    conn = get_connection()
+    try:
+        conn.execute("DELETE FROM flashcards WHERE id = ? AND deck = 'vocab'", (card_id,))
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/vocab/edit", methods=["POST"])
+def vocab_edit():
+    """Edit an existing vocab word."""
+    data = request.get_json()
+    card_id = data.get("card_id")
+    word = data.get("word", "").strip()
+    chinese = data.get("chinese", "").strip()
+    category = data.get("category", "").strip()
+
+    if not card_id or not word or not chinese:
+        return jsonify({"error": "card_id, word, and chinese are required"}), 400
+
+    conn = get_connection()
+    try:
+        conn.execute(
+            """UPDATE flashcards SET
+                front = ?, back = ?, hint = ?
+               WHERE id = ? AND deck = 'vocab'""",
+            (f'How do you say "{chinese}" in English?', word,
+             f"Category: {category}" if category else "", card_id)
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({"ok": True})
+
+
 # ─── API Routes ───────────────────────────────────────────────────────────────
 
 

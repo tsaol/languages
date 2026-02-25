@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.0 (2026-02-25)
+
+- Web vocab management page: add/edit/delete words from browser
+- Bottom nav bar now includes Vocab tab
+
 ## 0.1.0 (2026-02-25)
 
 Initial release.

@@ -1,0 +1,364 @@
+{% extends "base.html" %}
+{% set active_page = "vocab" %}
+
+{% block title %}EngLearn - Vocabulary{% endblock %}
+{% block body %}
+<div class="container fade-in">
+<style>
+    .vocab-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+    .vocab-header h1 { font-size: 1.4em; }
+    .vocab-count {
+        background: var(--surface2);
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.85em;
+        color: var(--muted);
+    }
+    .add-btn {
+        background: var(--accent);
+        color: #000;
+        border: none;
+        border-radius: 12px;
+        padding: 10px 20px;
+        font-size: 1em;
+        font-weight: 600;
+        cursor: pointer;
+        width: 100%;
+        margin-bottom: 16px;
+    }
+    .add-btn:active { opacity: 0.8; }
+
+    /* Modal */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.7);
+        z-index: 100;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal {
+        background: var(--surface);
+        border-radius: 16px;
+        padding: 24px;
+        width: 100%;
+        max-width: 400px;
+        border: 1px solid var(--border);
+    }
+    .modal h2 {
+        font-size: 1.2em;
+        margin-bottom: 16px;
+    }
+    .modal input, .modal select {
+        width: 100%;
+        padding: 12px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        color: var(--text);
+        font-size: 1em;
+        margin-bottom: 12px;
+        outline: none;
+    }
+    .modal input:focus, .modal select:focus {
+        border-color: var(--accent);
+    }
+    .modal-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 8px;
+    }
+    .modal-actions button {
+        flex: 1;
+        padding: 12px;
+        border: none;
+        border-radius: 10px;
+        font-size: 1em;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    .btn-save {
+        background: var(--accent);
+        color: #000;
+    }
+    .btn-cancel {
+        background: var(--surface2);
+        color: var(--text);
+    }
+    .btn-delete {
+        background: #ef4444;
+        color: #fff;
+        padding: 12px;
+        border: none;
+        border-radius: 10px;
+        font-size: 0.9em;
+        cursor: pointer;
+        margin-top: 8px;
+        width: 100%;
+    }
+
+    /* Search */
+    .search-bar {
+        width: 100%;
+        padding: 10px 14px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        color: var(--text);
+        font-size: 1em;
+        margin-bottom: 12px;
+        outline: none;
+    }
+    .search-bar:focus { border-color: var(--accent); }
+
+    /* Filter chips */
+    .filter-row {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        padding-bottom: 12px;
+        margin-bottom: 12px;
+        -webkit-overflow-scrolling: touch;
+    }
+    .filter-chip {
+        background: var(--surface2);
+        color: var(--muted);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 6px 14px;
+        font-size: 0.8em;
+        white-space: nowrap;
+        cursor: pointer;
+    }
+    .filter-chip.active {
+        background: var(--accent);
+        color: #000;
+        border-color: var(--accent);
+    }
+
+    /* Word list */
+    .word-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 14px;
+        margin-bottom: 10px;
+        cursor: pointer;
+        transition: border-color 0.2s;
+    }
+    .word-card:active { border-color: var(--accent); }
+    .word-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .word-en {
+        font-size: 1.1em;
+        font-weight: 600;
+        color: var(--accent);
+    }
+    .word-cat {
+        font-size: 0.75em;
+        color: var(--muted);
+        background: var(--surface2);
+        padding: 2px 8px;
+        border-radius: 10px;
+    }
+    .word-cn {
+        color: var(--muted);
+        font-size: 0.9em;
+        margin-top: 4px;
+    }
+    .word-meta {
+        display: flex;
+        gap: 12px;
+        margin-top: 6px;
+        font-size: 0.75em;
+        color: #555;
+    }
+    .word-meta .mastered { color: var(--accent); }
+    .word-meta .learning { color: #f59e0b; }
+    .word-meta .new-word { color: var(--muted); }
+    .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: var(--muted);
+    }
+</style>
+
+<div class="vocab-header">
+    <h1>📚 Vocabulary</h1>
+    <span class="vocab-count">{{ total }} words</span>
+</div>
+
+<button class="add-btn" onclick="openAddModal()">+ Add New Word</button>
+
+<input type="text" class="search-bar" placeholder="Search words..." oninput="filterWords()" id="searchInput">
+
+<div class="filter-row" id="filterRow">
+    <div class="filter-chip active" onclick="setFilter('')">All</div>
+    {% for cat in categories %}
+    <div class="filter-chip" onclick="setFilter('{{ cat }}')">{{ cat }}</div>
+    {% endfor %}
+</div>
+
+<div id="wordList">
+{% for w in words %}
+<div class="word-card" data-word="{{ w.word|lower }}" data-chinese="{{ w.chinese }}" data-cat="{{ w.category|lower }}"
+     data-id="{{ w.id }}" onclick="openEditModal({{ w.id }}, '{{ w.word|e }}', '{{ w.chinese|e }}', '{{ w.category|e }}')">
+    <div class="word-top">
+        <span class="word-en">{{ w.word }}</span>
+        {% if w.category %}<span class="word-cat">{{ w.category }}</span>{% endif %}
+    </div>
+    <div class="word-cn">{{ w.chinese }}</div>
+    <div class="word-meta">
+        {% if w.repetitions >= 3 %}
+        <span class="mastered">✅ Mastered</span>
+        {% elif w.repetitions > 0 %}
+        <span class="learning">📖 Learning ({{ w.repetitions }}x)</span>
+        {% else %}
+        <span class="new-word">🆕 New</span>
+        {% endif %}
+        {% if w.next_review %}
+        <span>Next: {{ w.next_review }}</span>
+        {% endif %}
+    </div>
+</div>
+{% endfor %}
+</div>
+
+<div class="empty-state" id="emptyState" style="display:none;">
+    No words found.
+</div>
+
+<!-- Add/Edit Modal -->
+<div class="modal-overlay" id="modal">
+    <div class="modal">
+        <h2 id="modalTitle">Add New Word</h2>
+        <input type="hidden" id="editId">
+        <input type="text" id="inputWord" placeholder="English word (e.g. mitigate)">
+        <input type="text" id="inputChinese" placeholder="Chinese meaning (e.g. 缓解)">
+        <input type="text" id="inputCategory" placeholder="Category (e.g. Action Verbs)" list="catList">
+        <datalist id="catList">
+            {% for cat in categories %}
+            <option value="{{ cat }}">
+            {% endfor %}
+        </datalist>
+        <div class="modal-actions">
+            <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+            <button class="btn-save" onclick="saveWord()">Save</button>
+        </div>
+        <button class="btn-delete" id="deleteBtn" style="display:none" onclick="deleteWord()">Delete This Word</button>
+    </div>
+</div>
+
+<script>
+let currentFilter = '';
+
+function setFilter(cat) {
+    currentFilter = cat.toLowerCase();
+    document.querySelectorAll('.filter-chip').forEach(c => {
+        const chipCat = c.textContent.trim().toLowerCase();
+        c.classList.toggle('active', currentFilter === '' ? chipCat === 'all' : chipCat === currentFilter);
+    });
+    filterWords();
+}
+
+function filterWords() {
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    const cards = document.querySelectorAll('.word-card');
+    let visible = 0;
+    cards.forEach(card => {
+        const word = card.dataset.word;
+        const chinese = card.dataset.chinese;
+        const cat = card.dataset.cat;
+        const matchSearch = !q || word.includes(q) || chinese.includes(q);
+        const matchFilter = !currentFilter || cat === currentFilter;
+        const show = matchSearch && matchFilter;
+        card.style.display = show ? 'block' : 'none';
+        if (show) visible++;
+    });
+    document.getElementById('emptyState').style.display = visible === 0 ? 'block' : 'none';
+}
+
+function openAddModal() {
+    document.getElementById('modalTitle').textContent = 'Add New Word';
+    document.getElementById('editId').value = '';
+    document.getElementById('inputWord').value = '';
+    document.getElementById('inputChinese').value = '';
+    document.getElementById('inputCategory').value = '';
+    document.getElementById('deleteBtn').style.display = 'none';
+    document.getElementById('modal').classList.add('active');
+    setTimeout(() => document.getElementById('inputWord').focus(), 100);
+}
+
+function openEditModal(id, word, chinese, category) {
+    document.getElementById('modalTitle').textContent = 'Edit Word';
+    document.getElementById('editId').value = id;
+    document.getElementById('inputWord').value = word;
+    document.getElementById('inputChinese').value = chinese;
+    document.getElementById('inputCategory').value = category;
+    document.getElementById('deleteBtn').style.display = 'block';
+    document.getElementById('modal').classList.add('active');
+}
+
+function closeModal() {
+    document.getElementById('modal').classList.remove('active');
+}
+
+async function saveWord() {
+    const id = document.getElementById('editId').value;
+    const word = document.getElementById('inputWord').value.trim();
+    const chinese = document.getElementById('inputChinese').value.trim();
+    const category = document.getElementById('inputCategory').value.trim();
+
+    if (!word || !chinese) { alert('Word and Chinese meaning are required.'); return; }
+
+    const url = id ? '/vocab/edit' : '/vocab/add';
+    const body = id ? { card_id: parseInt(id), word, chinese, category }
+                    : { word, chinese, category };
+
+    const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+    });
+    const data = await resp.json();
+    if (data.ok) {
+        location.reload();
+    } else {
+        alert(data.error || 'Failed to save.');
+    }
+}
+
+async function deleteWord() {
+    const id = document.getElementById('editId').value;
+    if (!id) return;
+    if (!confirm('Delete this word?')) return;
+
+    const resp = await fetch('/vocab/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ card_id: parseInt(id) }),
+    });
+    const data = await resp.json();
+    if (data.ok) {
+        location.reload();
+    }
+}
+
+// Close modal on overlay click
+document.getElementById('modal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+});
+</script>
+</div>
+{% endblock %}
