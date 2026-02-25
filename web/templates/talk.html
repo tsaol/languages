@@ -198,13 +198,6 @@ document.getElementById('userInput').addEventListener('keydown', e => {
     if (e.key === 'Enter') submitAnswer();
 });
 
-// Warn before leaving during active session
-window.addEventListener('beforeunload', e => {
-    if (idx > 0 && idx < scenarios.length) {
-        e.preventDefault();
-    }
-});
-
 showScene();
 </script>
 {% endif %}
