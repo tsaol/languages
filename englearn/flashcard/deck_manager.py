@@ -1,0 +1,185 @@
+"""Generate flashcard decks from parsed log entries."""
+import re
+import difflib
+from typing import List, Tuple
+from englearn.db import models
+from englearn.db.database import get_connection
+
+
+def generate_all_decks():
+    """Generate all flashcard decks from log entries."""
+    conn = get_connection()
+    try:
+        # Clear existing flashcards
+        conn.execute("DELETE FROM flashcards")
+        conn.commit()
+    finally:
+        conn.close()
+
+    entries = models.get_all_entries(status='incorrect')
+    seen_fronts = set()
+    counts = {'translate': 0, 'spelling': 0, 'fill_blank': 0, 'complete': 0, 'pattern': 0}
+
+    for entry in entries:
+        original = entry['original']
+        corrected = entry['corrected']
+        idiomatic = entry['idiomatic']
+        explanation = entry['explanation']
+        entry_id = entry['id']
+
+        if not corrected or corrected == 'N/A':
+            continue
+
+        # Get categories for this entry
+        conn = get_connection()
+        try:
+            cats = [r['category'] for r in conn.execute(
+                "SELECT category FROM entry_categories WHERE entry_id = ?", (entry_id,)
+            ).fetchall()]
+        finally:
+            conn.close()
+
+        # --- Deck 1: Translate (Chinese -> English) ---
+        if any('\u4e00' <= c <= '\u9fff' for c in original):
+            front = original
+            if front not in seen_fronts:
+                seen_fronts.add(front)
+                hint = _make_hint(idiomatic if idiomatic != 'N/A' else corrected)
+                models.insert_flashcard(
+                    deck='translate',
+                    front=f"Translate: {front}",
+                    back=idiomatic if idiomatic != 'N/A' else corrected,
+                    hint=hint,
+                    source_entry_id=entry_id
+                )
+                counts['translate'] += 1
+            continue
+
+        # --- Deck 2: Spelling ---
+        typo_pairs = _extract_typos(original, corrected, explanation)
+        for wrong, right in typo_pairs:
+            key = f"spell:{wrong}"
+            if key not in seen_fronts:
+                seen_fronts.add(key)
+                models.insert_flashcard(
+                    deck='spelling',
+                    front=f"Correct the spelling: {wrong}",
+                    back=right,
+                    hint=f"Used in: {original[:60]}...",
+                    source_entry_id=entry_id
+                )
+                counts['spelling'] += 1
+
+        # --- Deck 3: Fill in the blank (articles & prepositions) ---
+        if 'article' in cats or 'preposition' in cats:
+            blank_q = _make_fill_blank(original, corrected, explanation)
+            if blank_q:
+                front, answer = blank_q
+                key = f"blank:{front}"
+                if key not in seen_fronts:
+                    seen_fronts.add(key)
+                    models.insert_flashcard(
+                        deck='fill_blank',
+                        front=front,
+                        back=answer,
+                        hint=explanation[:80],
+                        source_entry_id=entry_id
+                    )
+                    counts['fill_blank'] += 1
+
+        # --- Deck 4: Complete the sentence ---
+        if 'incomplete' in cats or 'other' in cats:
+            front = f"Fix this sentence: {original}"
+            if front not in seen_fronts:
+                seen_fronts.add(front)
+                models.insert_flashcard(
+                    deck='complete',
+                    front=front,
+                    back=idiomatic if idiomatic != 'N/A' else corrected,
+                    hint=explanation[:80],
+                    source_entry_id=entry_id
+                )
+                counts['complete'] += 1
+
+        # --- Deck 5: Pattern drill ---
+        pattern = entry.get('pattern', '')
+        if pattern and pattern != 'N/A':
+            key = f"pattern:{pattern[:50]}"
+            if key not in seen_fronts:
+                seen_fronts.add(key)
+                models.insert_flashcard(
+                    deck='pattern',
+                    front=f"Use this pattern in a sentence: {pattern}",
+                    back=idiomatic if idiomatic != 'N/A' else corrected,
+                    hint=f"Example context: {explanation[:60]}",
+                    source_entry_id=entry_id
+                )
+                counts['pattern'] += 1
+
+    return counts
+
+
+def _make_hint(text: str) -> str:
+    """Create a hint by showing first word and blanking the rest."""
+    words = text.split()
+    if len(words) <= 2:
+        return words[0] + " ..." if words else ""
+    return f"{words[0]} {words[1]} ... {words[-1]}"
+
+
+def _extract_typos(original: str, corrected: str, explanation: str) -> List[Tuple[str, str]]:
+    """Extract typo word pairs from original vs corrected."""
+    pairs = []
+    # Try to find explicit typo mentions in explanation
+    typo_patterns = [
+        r'"(\w+)"\s*(?:->|→|should be)\s*"(\w+)"',
+        r'(\w+)\s*(?:->|→)\s*(\w+)',
+    ]
+    for pat in typo_patterns:
+        for m in re.finditer(pat, explanation):
+            wrong, right = m.group(1), m.group(2)
+            if wrong.lower() != right.lower() and len(wrong) > 1:
+                pairs.append((wrong, right))
+
+    if not pairs:
+        # Word-level diff
+        orig_words = original.lower().split()
+        corr_words = corrected.lower().split()
+        sm = difflib.SequenceMatcher(None, orig_words, corr_words)
+        for op, i1, i2, j1, j2 in sm.get_opcodes():
+            if op == 'replace':
+                for ow, cw in zip(orig_words[i1:i2], corr_words[j1:j2]):
+                    if ow != cw and len(ow) > 1 and _is_typo(ow, cw):
+                        pairs.append((ow, cw))
+    return pairs
+
+
+def _is_typo(a: str, b: str) -> bool:
+    """Check if a is likely a typo of b (high similarity)."""
+    ratio = difflib.SequenceMatcher(None, a, b).ratio()
+    return ratio > 0.5 and ratio < 1.0
+
+
+def _make_fill_blank(original: str, corrected: str, explanation: str) -> Tuple[str, str]:
+    """Create a fill-in-the-blank question for article/preposition errors."""
+    orig_words = original.split()
+    corr_words = corrected.split()
+
+    sm = difflib.SequenceMatcher(None, [w.lower() for w in orig_words],
+                                  [w.lower() for w in corr_words])
+    for op, i1, i2, j1, j2 in sm.get_opcodes():
+        if op == 'insert':
+            inserted = corr_words[j1:j2]
+            for word in inserted:
+                if word.lower() in ('a', 'an', 'the', 'on', 'in', 'at', 'for', 'to', 'of', 'with'):
+                    blank_sentence = corr_words[:j1] + ['___'] + corr_words[j2:]
+                    return (f"Fill the blank: {' '.join(blank_sentence)}", word)
+        elif op == 'replace':
+            for ow, cw in zip(orig_words[i1:i2], corr_words[j1:j2]):
+                if cw.lower() in ('a', 'an', 'the', 'on', 'in', 'at', 'for', 'to', 'of', 'with'):
+                    blank_sentence = list(corr_words)
+                    idx = j1
+                    if idx < len(blank_sentence):
+                        blank_sentence[idx] = '___'
+                    return (f"Fill the blank: {' '.join(blank_sentence)}", cw)
+    return None
