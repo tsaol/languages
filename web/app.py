@@ -102,6 +102,41 @@ def talk():
     return render_template("talk.html", scenarios=scenarios, total=len(scenarios))
 
 
+@app.route("/talk/session", methods=["GET"])
+@login_required
+def talk_session_load():
+    """Load saved talk session from DB."""
+    import json
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT value FROM sync_state WHERE key = 'talk_session'"
+        ).fetchone()
+        if row:
+            return jsonify(json.loads(row["value"]))
+        return jsonify(None)
+    finally:
+        conn.close()
+
+
+@app.route("/talk/session", methods=["POST"])
+@login_required
+def talk_session_save():
+    """Save talk session progress to DB."""
+    import json
+    data = request.get_json()
+    conn = get_connection()
+    try:
+        conn.execute(
+            "INSERT OR REPLACE INTO sync_state (key, value) VALUES ('talk_session', ?)",
+            (json.dumps(data),)
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({"ok": True})
+
+
 @app.route("/talk/answer", methods=["POST"])
 @login_required
 def talk_answer():

@@ -70,30 +70,42 @@
 </div>
 
 <script>
-const KEY = 'englearn_talk_session';
 const freshScenarios = {{ scenarios | tojson }};
-
-// Restore or start new session
-let session = JSON.parse(localStorage.getItem(KEY) || 'null');
-if (!session || session.done) {
-    session = { scenarios: freshScenarios, idx: 0, correct: 0, answered: 0, done: false };
-}
-const scenarios = session.scenarios;
-let idx = session.idx;
-let correct = session.correct;
-let answered = session.answered;
+let scenarios = freshScenarios;
+let idx = 0;
+let correct = 0;
+let answered = 0;
 
 function saveSession() {
-    session.idx = idx;
-    session.correct = correct;
-    session.answered = answered;
-    localStorage.setItem(KEY, JSON.stringify(session));
+    fetch('/talk/session', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ scenarios, idx, correct, answered, done: false }),
+    });
 }
 
 function clearSession() {
-    session.done = true;
-    localStorage.setItem(KEY, JSON.stringify(session));
+    fetch('/talk/session', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ done: true }),
+    });
 }
+
+async function initSession() {
+    try {
+        const resp = await fetch('/talk/session');
+        const saved = await resp.json();
+        if (saved && !saved.done && saved.scenarios && saved.idx < saved.scenarios.length) {
+            scenarios = saved.scenarios;
+            idx = saved.idx;
+            correct = saved.correct || 0;
+            answered = saved.answered || 0;
+        }
+    } catch(e) {}
+    showScene();
+}
+initSession();
 
 function showScene() {
     if (idx >= scenarios.length) { showComplete(); return; }
@@ -197,8 +209,6 @@ function showComplete() {
 document.getElementById('userInput').addEventListener('keydown', e => {
     if (e.key === 'Enter') submitAnswer();
 });
-
-showScene();
 </script>
 {% endif %}
 
