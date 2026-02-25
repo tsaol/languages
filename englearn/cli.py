@@ -82,6 +82,12 @@ def cmd_search(args):
         print()
 
 
+def cmd_talk(args):
+    """Run conversation practice."""
+    from englearn.quiz.conversation import run_conversation
+    run_conversation(count=args.count)
+
+
 def cmd_weak(args):
     """Show weakest areas."""
     from englearn.db.models import get_category_stats, get_weak_categories
@@ -147,6 +153,10 @@ def main():
     p_search = sub.add_parser('search', help='Search error entries')
     p_search.add_argument('keyword', type=str, help='Search keyword')
 
+    # talk
+    p_talk = sub.add_parser('talk', help='Conversation practice (dialogue-based)')
+    p_talk.add_argument('--count', '-n', type=int, default=10, help='Number of rounds')
+
     # weak
     sub.add_parser('weak', help='Show weakest areas')
 
@@ -170,6 +180,7 @@ def main():
         'dashboard': cmd_dashboard,
         'decks': cmd_decks,
         'search': cmd_search,
+        'talk': cmd_talk,
         'weak': cmd_weak,
     }
     commands[args.command](args)
