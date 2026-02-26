@@ -122,6 +122,59 @@ Respond in JSON only:
         return {"sentence": "", "collocation": ""}
 
 
+CHAT_ROLES = {
+    "sarah": {
+        "name": "Sarah",
+        "desc": "You are Sarah, an American tech PM at a startup. You're friendly, direct, and use casual American English. You talk about work, projects, meetings, team dynamics. You occasionally use American slang and idioms. Keep responses under 80 words."
+    },
+    "james": {
+        "name": "James",
+        "desc": "You are James, a British English teacher. You're patient, encouraging, and use British English. You challenge the learner with idioms, phrasal verbs, and advanced vocabulary. You ask follow-up questions. Keep responses under 80 words."
+    }
+}
+
+
+def chat_reply(role_id: str, user_message: str, history: list) -> dict:
+    """Generate a chat reply from a role character with grammar corrections."""
+    role = CHAT_ROLES.get(role_id)
+    if not role:
+        return {"reply": "Unknown role.", "corrections": []}
+
+    role_name = role["name"]
+
+    # Format conversation history (last 10 messages)
+    recent = history[-10:] if len(history) > 10 else history
+    conversation = ""
+    for msg in recent:
+        if msg["sender"] == "user":
+            conversation += f"[User]: {msg['message']}\n"
+        else:
+            conversation += f"[{role_name}]: {msg['message']}\n"
+
+    prompt = f"""{role['desc']}
+
+You are having a conversation with a Chinese English learner. Stay in character.
+Also check the user's English for grammar, spelling, and word choice errors.
+
+Conversation so far:
+{conversation}
+[User]: {user_message}
+
+Respond as JSON only:
+{{"reply": "<your in-character response>", "corrections": [<list of {{"wrong": "<exact wrong text from user>", "correct": "<corrected version>", "type": "grammar|spelling|word_choice"}}>, return empty list if no errors]}}"""
+
+    raw_text = ""
+    try:
+        raw_text = _invoke_model(prompt, max_tokens=500)
+        result = _parse_json(raw_text)
+        return {
+            "reply": result.get("reply", raw_text),
+            "corrections": result.get("corrections", []),
+        }
+    except Exception:
+        return {"reply": raw_text or "Sorry, I couldn't respond.", "corrections": []}
+
+
 def generate_scenario(original: str, corrected: str, pattern: str) -> dict:
     """Generate a Talk scenario from an english.log error entry."""
     prompt = f"""A Chinese English learner made this error:

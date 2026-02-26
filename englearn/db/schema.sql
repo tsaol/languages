@@ -88,6 +88,16 @@ CREATE TABLE IF NOT EXISTS sync_state (
     value TEXT
 );
 
+CREATE TABLE IF NOT EXISTS chat_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    role_id TEXT NOT NULL,
+    sender TEXT NOT NULL,
+    message TEXT NOT NULL,
+    corrections TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_role ON chat_messages(role_id);
+
 CREATE INDEX IF NOT EXISTS idx_flashcards_deck ON flashcards(deck);
 CREATE INDEX IF NOT EXISTS idx_flashcards_next_review ON flashcards(next_review);
 CREATE INDEX IF NOT EXISTS idx_entry_categories ON entry_categories(category);

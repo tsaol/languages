@@ -23,6 +23,9 @@ from englearn.db.models import (
     insert_talk_scenario,
     get_recent_error_entries,
     cache_flashcard_example,
+    insert_chat_message,
+    get_chat_history,
+    clear_chat_history,
 )
 from englearn.db.database import get_connection, init_db
 
@@ -469,6 +472,71 @@ def vocab_edit():
     finally:
         conn.close()
     return jsonify({"ok": True})
+
+
+# ─── Chat ────────────────────────────────────────────────────────────────────
+
+
+@app.route("/chat")
+@login_required
+def chat():
+    return render_template("chat.html", active_page="chat")
+
+
+@app.route("/api/chat/send", methods=["POST"])
+@login_required
+def api_chat_send():
+    data = request.get_json()
+    role_id = data.get("role_id", "").strip()
+    message = data.get("message", "").strip()
+
+    if not role_id or not message:
+        return jsonify({"error": "role_id and message are required"}), 400
+
+    from englearn.scoring.llm_scorer import CHAT_ROLES, chat_reply
+    if role_id not in CHAT_ROLES:
+        return jsonify({"error": "Invalid role_id"}), 400
+
+    # Insert user message
+    insert_chat_message(role_id, "user", message)
+
+    # Fetch history for context
+    history = get_chat_history(role_id, limit=20)
+
+    # Get AI reply
+    result = chat_reply(role_id, message, history)
+
+    # Insert AI reply
+    corrections_json = json.dumps(result.get("corrections", []))
+    insert_chat_message(role_id, role_id, result["reply"], corrections=corrections_json)
+
+    return jsonify({
+        "reply": result["reply"],
+        "corrections": result.get("corrections", []),
+    })
+
+
+@app.route("/api/chat/history")
+@login_required
+def api_chat_history():
+    role_id = request.args.get("role_id", "").strip()
+    limit = int(request.args.get("limit", 20))
+
+    if not role_id:
+        return jsonify({"error": "role_id is required"}), 400
+
+    messages = get_chat_history(role_id, limit=limit)
+    # Parse corrections JSON for each message
+    for msg in messages:
+        if msg.get("corrections"):
+            try:
+                msg["corrections"] = json.loads(msg["corrections"])
+            except (json.JSONDecodeError, TypeError):
+                msg["corrections"] = []
+        else:
+            msg["corrections"] = []
+
+    return jsonify({"messages": messages})
 
 
 # ─── Stats Dashboard ─────────────────────────────────────────────────────────
