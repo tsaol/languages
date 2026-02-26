@@ -94,6 +94,7 @@ CREATE TABLE IF NOT EXISTS chat_messages (
     sender TEXT NOT NULL,
     message TEXT NOT NULL,
     corrections TEXT,
+    scenario_id TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_chat_messages_role ON chat_messages(role_id);

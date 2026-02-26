@@ -41,9 +41,15 @@ def _migrate(conn):
             sender TEXT NOT NULL,
             message TEXT NOT NULL,
             corrections TEXT,
+            scenario_id TEXT,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         )""")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_chat_messages_role ON chat_messages(role_id)")
+
+    # Add scenario_id column to chat_messages if missing
+    chat_cols = {r[1] for r in conn.execute("PRAGMA table_info(chat_messages)").fetchall()}
+    if 'scenario_id' not in chat_cols:
+        conn.execute("ALTER TABLE chat_messages ADD COLUMN scenario_id TEXT")
 
     conn.commit()
 

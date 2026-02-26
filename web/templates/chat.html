@@ -14,13 +14,11 @@
         padding: 0;
     }
 
-    /* Role Selection Screen */
+    /* ── Role Selection Screen ── */
     .role-select {
         padding: 20px;
         flex: 1;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
+        overflow-y: auto;
     }
 
     .role-select h1 {
@@ -33,20 +31,24 @@
     .role-select .subtitle {
         font-size: 0.8rem;
         color: var(--text-dim);
-        margin-bottom: 24px;
+        margin-bottom: 20px;
     }
 
-    .role-cards {
-        display: flex;
+    .role-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
         gap: 12px;
     }
 
+    @media (max-width: 400px) {
+        .role-grid { grid-template-columns: 1fr; }
+    }
+
     .role-card {
-        flex: 1;
         background: var(--surface);
         border: 1px solid var(--border);
         border-radius: var(--radius);
-        padding: 20px 16px;
+        padding: 18px 16px;
         cursor: pointer;
         transition: all 0.2s;
         display: flex;
@@ -58,65 +60,217 @@
         background: var(--surface2);
     }
 
-    .role-card:active {
-        transform: scale(0.97);
-    }
+    .role-card:active { transform: scale(0.97); }
 
     .role-card .role-name {
-        font-size: 1.15rem;
+        font-size: 1.1rem;
         font-weight: 700;
         margin-bottom: 2px;
     }
 
     .role-card .role-title {
-        font-size: 0.75rem;
+        font-size: 0.72rem;
         color: var(--accent);
         font-weight: 600;
-        margin-bottom: 10px;
+        margin-bottom: 8px;
     }
 
     .role-card .role-desc {
-        font-size: 0.8rem;
+        font-size: 0.78rem;
         color: var(--text-dim);
         line-height: 1.5;
         flex: 1;
-        margin-bottom: 14px;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
     }
 
-    .role-card .btn {
-        width: 100%;
+    /* ── Scenario Selection Screen ── */
+    .scenario-select {
+        padding: 20px;
+        flex: 1;
+        overflow-y: auto;
     }
 
-    @media (max-width: 400px) {
-        .role-cards {
-            flex-direction: column;
-        }
+    .scenario-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
     }
 
-    /* Chat Interface */
+    .scenario-header .back-btn {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        color: var(--text-dim);
+        font-size: 1rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.15s;
+        flex-shrink: 0;
+    }
+
+    .scenario-header .back-btn:hover {
+        color: var(--text);
+        border-color: var(--text-dim);
+    }
+
+    .scenario-header-info .sh-name {
+        font-size: 1.2rem;
+        font-weight: 700;
+    }
+
+    .scenario-header-info .sh-title {
+        font-size: 0.72rem;
+        color: var(--accent);
+        font-weight: 600;
+    }
+
+    .scenario-personality {
+        font-size: 0.78rem;
+        color: var(--text-dim);
+        line-height: 1.5;
+        margin-bottom: 18px;
+        padding: 10px 14px;
+        background: var(--surface);
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+    }
+
+    .scenario-list-title {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--text-dim);
+        margin-bottom: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .scenario-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 14px 16px;
+        margin-bottom: 10px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .scenario-card:hover {
+        border-color: var(--accent);
+        background: var(--surface2);
+    }
+
+    .scenario-card:active { transform: scale(0.98); }
+
+    .scenario-card .sc-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 4px;
+    }
+
+    .scenario-card .sc-title {
+        font-size: 0.95rem;
+        font-weight: 600;
+    }
+
+    .scenario-card .sc-badge {
+        font-size: 0.65rem;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+
+    .sc-badge.beginner { background: var(--accent-dim); color: var(--accent); }
+    .sc-badge.intermediate { background: var(--blue-dim); color: var(--blue); }
+    .sc-badge.advanced { background: var(--yellow-dim); color: var(--yellow); }
+
+    .scenario-card .sc-desc {
+        font-size: 0.78rem;
+        color: var(--text-dim);
+        line-height: 1.4;
+        margin-bottom: 6px;
+    }
+
+    .scenario-card .sc-vocab {
+        font-size: 0.7rem;
+        color: var(--blue);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    .scenario-card .sc-vocab span {
+        background: var(--blue-dim);
+        padding: 1px 6px;
+        border-radius: 4px;
+    }
+
+    .scenario-card.free-talk {
+        border-style: dashed;
+    }
+
+    .scenario-card.free-talk .sc-title {
+        color: var(--accent);
+    }
+
+    /* ── Chat Interface ── */
     .chat-header {
-        padding: 14px 20px;
+        padding: 12px 20px;
         background: var(--surface);
         border-bottom: 1px solid var(--border);
         display: flex;
         align-items: center;
-        justify-content: space-between;
+        gap: 10px;
         flex-shrink: 0;
     }
 
+    .chat-header .back-btn {
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        color: var(--text-dim);
+        font-size: 0.9rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .chat-header .back-btn:hover {
+        color: var(--text);
+    }
+
+    .chat-header-info {
+        flex: 1;
+    }
+
     .chat-header-info .chat-role-name {
-        font-size: 1rem;
+        font-size: 0.95rem;
         font-weight: 700;
     }
 
-    .chat-header-info .chat-role-desc {
-        font-size: 0.72rem;
-        color: var(--text-dim);
+    .chat-header-info .chat-scenario-name {
+        font-size: 0.68rem;
+        color: var(--accent);
+        font-weight: 500;
     }
 
-    .chat-header .btn-switch {
-        padding: 6px 14px;
-        font-size: 0.75rem;
+    .chat-header .btn-new {
+        padding: 5px 12px;
+        font-size: 0.7rem;
         font-weight: 600;
         background: var(--surface2);
         border: 1px solid var(--border);
@@ -126,13 +280,9 @@
         transition: all 0.15s;
     }
 
-    .chat-header .btn-switch:hover {
+    .chat-header .btn-new:hover {
         color: var(--text);
         border-color: var(--text-dim);
-    }
-
-    .chat-header .btn-switch:active {
-        transform: scale(0.95);
     }
 
     /* Messages Area */
@@ -151,13 +301,8 @@
         animation: fadeIn 0.3s ease;
     }
 
-    .msg-row.user {
-        align-items: flex-end;
-    }
-
-    .msg-row.ai {
-        align-items: flex-start;
-    }
+    .msg-row.user { align-items: flex-end; }
+    .msg-row.ai { align-items: flex-start; }
 
     .msg-bubble {
         max-width: 82%;
@@ -189,20 +334,10 @@
         line-height: 1.5;
     }
 
-    .msg-corrections .correction-item {
-        margin-bottom: 2px;
-    }
-
+    .msg-corrections .correction-item { margin-bottom: 2px; }
     .msg-corrections .correction-item .correct-text {
         color: var(--accent);
         font-weight: 500;
-    }
-
-    .msg-time {
-        font-size: 0.65rem;
-        color: var(--text-dim);
-        margin-top: 2px;
-        padding: 0 4px;
     }
 
     /* Typing Indicator */
@@ -263,13 +398,8 @@
         transition: border-color 0.15s;
     }
 
-    .chat-input-area input:focus {
-        border-color: var(--accent);
-    }
-
-    .chat-input-area input::placeholder {
-        color: var(--text-dim);
-    }
+    .chat-input-area input:focus { border-color: var(--accent); }
+    .chat-input-area input::placeholder { color: var(--text-dim); }
 
     .send-btn {
         width: 42px;
@@ -288,18 +418,9 @@
         flex-shrink: 0;
     }
 
-    .send-btn:hover {
-        background: #5ceb95;
-    }
-
-    .send-btn:active {
-        transform: scale(0.92);
-    }
-
-    .send-btn:disabled {
-        opacity: 0.4;
-        cursor: not-allowed;
-    }
+    .send-btn:hover { background: #5ceb95; }
+    .send-btn:active { transform: scale(0.92); }
+    .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
     /* Clickable words */
     .clickable-words .word {
@@ -308,15 +429,8 @@
         padding: 0 1px;
         transition: background 0.15s;
     }
-    .clickable-words .word:hover {
-        background: var(--blue-dim);
-        color: var(--blue);
-    }
-    .clickable-words .word:active {
-        transform: scale(0.95);
-    }
+    .clickable-words .word:hover { background: var(--blue-dim); color: var(--blue); }
 
-    /* Word hint under AI messages */
     .tap-hint {
         font-size: 0.62rem;
         color: var(--text-dim);
@@ -330,39 +444,40 @@
 {% block body %}
 <div class="chat-page">
 
-    <!-- Role Selection Screen -->
+    <!-- Screen 1: Role Selection -->
     <div id="roleSelect" class="role-select fade-in">
         <h1>Chat</h1>
-        <div class="subtitle">Choose a conversation partner to practice with</div>
-        <div class="role-cards">
-            <div class="role-card" onclick="selectRole('sarah')">
-                <div class="role-name">Sarah</div>
-                <div class="role-title">American Tech PM</div>
-                <div class="role-desc">Casual work conversations. Talks about meetings, deadlines, projects.</div>
-                <button class="btn btn-accent btn-sm">Chat with Sarah</button>
-            </div>
-            <div class="role-card" onclick="selectRole('james')">
-                <div class="role-name">James</div>
-                <div class="role-title">British English Teacher</div>
-                <div class="role-desc">Challenges you with idioms and advanced vocabulary.</div>
-                <button class="btn btn-accent btn-sm">Chat with James</button>
-            </div>
+        <div class="subtitle">Choose a conversation partner</div>
+        <div class="role-grid" id="roleGrid">
+            <!-- Populated by JS -->
         </div>
     </div>
 
-    <!-- Chat Interface (hidden initially) -->
-    <div id="chatArea" style="display:none; flex:1; flex-direction:column;">
+    <!-- Screen 2: Scenario Selection -->
+    <div id="scenarioSelect" class="scenario-select" style="display:none;">
+        <div class="scenario-header">
+            <button class="back-btn" onclick="backToRoles()">&#8592;</button>
+            <div class="scenario-header-info">
+                <div class="sh-name" id="shName"></div>
+                <div class="sh-title" id="shTitle"></div>
+            </div>
+        </div>
+        <div class="scenario-personality" id="shPersonality"></div>
+        <div class="scenario-list-title">Scenarios</div>
+        <div id="scenarioList"></div>
+    </div>
 
+    <!-- Screen 3: Chat Interface -->
+    <div id="chatArea" style="display:none; flex:1; flex-direction:column;">
         <div class="chat-header">
+            <button class="back-btn" onclick="backToScenarios()">&#8592;</button>
             <div class="chat-header-info">
                 <div class="chat-role-name" id="chatRoleName"></div>
-                <div class="chat-role-desc" id="chatRoleDesc"></div>
+                <div class="chat-scenario-name" id="chatScenarioName"></div>
             </div>
-            <button class="btn-switch" onclick="switchRole()">Switch</button>
+            <button class="btn-new" onclick="restartChat()">New Chat</button>
         </div>
-
         <div class="messages-area" id="messagesArea"></div>
-
         <div class="chat-input-area">
             <input type="text" id="chatInput" placeholder="Type a message..."
                    spellcheck="true" autocapitalize="sentences" autocomplete="off">
@@ -387,57 +502,179 @@
 </div>
 
 <script>
-const roles = {
-    sarah: {
-        name: 'Sarah',
-        desc: 'American Tech PM - Casual work conversations',
-    },
-    james: {
-        name: 'James',
-        desc: 'British English Teacher - Idioms & advanced vocab',
-    }
-};
-
+let rolesData = {};
 let currentRole = null;
+let currentScenario = null;  // null = free talk
 let isSending = false;
 
-function selectRole(roleId) {
-    currentRole = roleId;
-    const role = roles[roleId];
-    document.getElementById('chatRoleName').textContent = role.name;
-    document.getElementById('chatRoleDesc').textContent = role.desc;
-    document.getElementById('roleSelect').style.display = 'none';
-    document.getElementById('chatArea').style.display = 'flex';
-    document.getElementById('messagesArea').innerHTML = '';
-    loadHistory(roleId);
-    document.getElementById('chatInput').focus();
+// ── Load roles from API ──
+async function loadRoles() {
+    try {
+        const resp = await fetch('/api/chat/roles');
+        const data = await resp.json();
+        rolesData = data.roles;
+        renderRoleCards();
+    } catch (e) {
+        console.error('Failed to load roles:', e);
+    }
 }
 
-function switchRole() {
+function renderRoleCards() {
+    const grid = document.getElementById('roleGrid');
+    grid.innerHTML = '';
+    for (const [rid, role] of Object.entries(rolesData)) {
+        const card = document.createElement('div');
+        card.className = 'role-card';
+        card.onclick = () => selectRole(rid);
+        card.innerHTML = `
+            <div class="role-name">${esc(role.name)}</div>
+            <div class="role-title">${esc(role.title)}</div>
+            <div class="role-desc">${esc(role.description)}</div>
+        `;
+        grid.appendChild(card);
+    }
+}
+
+// ── Screen Navigation ──
+function selectRole(roleId) {
+    currentRole = roleId;
+    const role = rolesData[roleId];
+
+    document.getElementById('shName').textContent = role.name;
+    document.getElementById('shTitle').textContent = role.title;
+    document.getElementById('shPersonality').textContent = role.personality;
+
+    // Render scenario cards
+    const list = document.getElementById('scenarioList');
+    list.innerHTML = '';
+
+    // Free Talk option first
+    const freeCard = document.createElement('div');
+    freeCard.className = 'scenario-card free-talk';
+    freeCard.onclick = () => startChat(null);
+    freeCard.innerHTML = `
+        <div class="sc-top">
+            <div class="sc-title">Free Talk</div>
+        </div>
+        <div class="sc-desc">Open conversation — talk about anything you like</div>
+    `;
+    list.appendChild(freeCard);
+
+    // Scenario cards
+    for (const s of role.scenarios) {
+        const card = document.createElement('div');
+        card.className = 'scenario-card';
+        card.onclick = () => startChat(s.id);
+        let vocabHtml = '';
+        if (s.vocabulary && s.vocabulary.length > 0) {
+            vocabHtml = '<div class="sc-vocab">' + s.vocabulary.slice(0, 5).map(v => `<span>${esc(v)}</span>`).join('') + '</div>';
+        }
+        card.innerHTML = `
+            <div class="sc-top">
+                <div class="sc-title">${esc(s.title)}</div>
+                <span class="sc-badge ${s.difficulty}">${s.difficulty}</span>
+            </div>
+            <div class="sc-desc">${esc(s.desc)}</div>
+            ${vocabHtml}
+        `;
+        list.appendChild(card);
+    }
+
+    document.getElementById('roleSelect').style.display = 'none';
+    document.getElementById('scenarioSelect').style.display = '';
+}
+
+function backToRoles() {
     currentRole = null;
-    document.getElementById('chatArea').style.display = 'none';
+    currentScenario = null;
+    document.getElementById('scenarioSelect').style.display = 'none';
     document.getElementById('roleSelect').style.display = '';
 }
 
-async function loadHistory(roleId) {
+function backToScenarios() {
+    document.getElementById('chatArea').style.display = 'none';
+    document.getElementById('scenarioSelect').style.display = '';
+}
+
+// ── Start Chat Session ──
+async function startChat(scenarioId) {
+    currentScenario = scenarioId;
+    const role = rolesData[currentRole];
+
+    // Set header info
+    document.getElementById('chatRoleName').textContent = role.name;
+    if (scenarioId) {
+        const scenario = role.scenarios.find(s => s.id === scenarioId);
+        document.getElementById('chatScenarioName').textContent = scenario ? scenario.title : '';
+    } else {
+        document.getElementById('chatScenarioName').textContent = 'Free Talk';
+    }
+
+    // Show chat area
+    document.getElementById('scenarioSelect').style.display = 'none';
+    document.getElementById('chatArea').style.display = 'flex';
+    document.getElementById('messagesArea').innerHTML = '';
+
+    // Check if there's existing history
+    const history = await loadHistory();
+    if (!history || history.length === 0) {
+        // Start new session — get first message from AI
+        await startNewSession();
+    }
+
+    document.getElementById('chatInput').focus();
+}
+
+async function loadHistory() {
     try {
-        const resp = await fetch('/api/chat/history?role_id=' + encodeURIComponent(roleId));
+        let url = '/api/chat/history?role_id=' + encodeURIComponent(currentRole);
+        if (currentScenario) url += '&scenario_id=' + encodeURIComponent(currentScenario);
+        const resp = await fetch(url);
         const data = await resp.json();
         if (data.messages && data.messages.length > 0) {
             data.messages.forEach(msg => {
-                if (msg.role === 'user') {
-                    appendUserMessage(msg.content, msg.corrections || []);
+                if (msg.sender === 'user') {
+                    appendUserMessage(msg.message, msg.corrections || []);
                 } else {
-                    appendAIMessage(msg.content);
+                    appendAIMessage(msg.message);
                 }
             });
             scrollToBottom();
+            return data.messages;
         }
+        return [];
     } catch (e) {
         console.error('Failed to load history:', e);
+        return [];
     }
 }
 
+async function startNewSession() {
+    try {
+        const resp = await fetch('/api/chat/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                role_id: currentRole,
+                scenario_id: currentScenario || '',
+            })
+        });
+        const data = await resp.json();
+        if (data.first_message) {
+            appendAIMessage(data.first_message);
+            scrollToBottom();
+        }
+    } catch (e) {
+        console.error('Failed to start session:', e);
+    }
+}
+
+async function restartChat() {
+    document.getElementById('messagesArea').innerHTML = '';
+    await startNewSession();
+}
+
+// ── Message Display ──
 function appendUserMessage(text, corrections) {
     const area = document.getElementById('messagesArea');
     const row = document.createElement('div');
@@ -454,10 +691,7 @@ function appendUserMessage(text, corrections) {
         corrections.forEach(c => {
             const item = document.createElement('div');
             item.className = 'correction-item';
-            item.innerHTML = '"' + escapeHtml(c.wrong || '') + '" -&gt; <span class="correct-text">' + escapeHtml(c.correct || '') + '</span>';
-            if (c.explanation) {
-                item.innerHTML += ' <span style="color:var(--text-dim);">(' + escapeHtml(c.explanation) + ')</span>';
-            }
+            item.innerHTML = '"' + esc(c.wrong || '') + '" &rarr; <span class="correct-text">' + esc(c.correct || '') + '</span>';
             corrDiv.appendChild(item);
         });
         row.appendChild(corrDiv);
@@ -489,12 +723,10 @@ function showTyping() {
     const indicator = document.createElement('div');
     indicator.className = 'typing-indicator';
     indicator.id = 'typingIndicator';
-
     const bubble = document.createElement('div');
     bubble.className = 'typing-bubble';
     bubble.innerHTML = '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';
     indicator.appendChild(bubble);
-
     area.appendChild(indicator);
     scrollToBottom();
 }
@@ -504,6 +736,7 @@ function hideTyping() {
     if (el) el.remove();
 }
 
+// ── Send Message ──
 async function sendMessage() {
     const input = document.getElementById('chatInput');
     const text = input.value.trim();
@@ -513,11 +746,8 @@ async function sendMessage() {
     document.getElementById('sendBtn').disabled = true;
     input.value = '';
 
-    // Append user bubble immediately
     appendUserMessage(text, []);
     scrollToBottom();
-
-    // Show typing indicator
     showTyping();
 
     try {
@@ -527,17 +757,17 @@ async function sendMessage() {
             body: JSON.stringify({
                 role_id: currentRole,
                 message: text,
+                scenario_id: currentScenario || '',
             })
         });
         const data = await resp.json();
         hideTyping();
 
-        // Update the last user message with corrections if any
+        // Update corrections on last user message
         if (data.corrections && data.corrections.length > 0) {
             const userRows = document.querySelectorAll('.msg-row.user');
             const lastUserRow = userRows[userRows.length - 1];
             if (lastUserRow) {
-                // Remove existing empty corrections
                 const existingCorr = lastUserRow.querySelector('.msg-corrections');
                 if (existingCorr) existingCorr.remove();
 
@@ -546,25 +776,19 @@ async function sendMessage() {
                 data.corrections.forEach(c => {
                     const item = document.createElement('div');
                     item.className = 'correction-item';
-                    item.innerHTML = '"' + escapeHtml(c.wrong || '') + '" -&gt; <span class="correct-text">' + escapeHtml(c.correct || '') + '</span>';
-                    if (c.explanation) {
-                        item.innerHTML += ' <span style="color:var(--text-dim);">(' + escapeHtml(c.explanation) + ')</span>';
-                    }
+                    item.innerHTML = '"' + esc(c.wrong || '') + '" &rarr; <span class="correct-text">' + esc(c.correct || '') + '</span>';
                     corrDiv.appendChild(item);
                 });
                 lastUserRow.appendChild(corrDiv);
             }
         }
 
-        // Append AI response
         if (data.reply) {
             appendAIMessage(data.reply);
         }
-
         scrollToBottom();
     } catch (e) {
         hideTyping();
-        console.error('Send failed:', e);
         appendAIMessage('Sorry, something went wrong. Please try again.');
         scrollToBottom();
     }
@@ -576,22 +800,21 @@ async function sendMessage() {
 
 function scrollToBottom() {
     const area = document.getElementById('messagesArea');
-    requestAnimationFrame(() => {
-        area.scrollTop = area.scrollHeight;
-    });
+    requestAnimationFrame(() => { area.scrollTop = area.scrollHeight; });
 }
 
-// Clickable words for vocab saving
+// ── Utils ──
 function makeWordsClickable(text) {
     if (!text) return '';
     return text.replace(/([a-zA-Z'-]+)/g, '<span class="word" onclick="openVocabForm(this.textContent)">$1</span>');
 }
 
-function escapeHtml(s) {
+function esc(s) {
+    if (!s) return '';
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-// Vocab overlay functions
+// ── Vocab Overlay ──
 async function openVocabForm(word) {
     const clean = word.replace(/[^a-zA-Z'-]/g, '').toLowerCase();
     if (clean.length < 2) return;
@@ -636,15 +859,16 @@ async function saveToVocab() {
     }
 }
 
-// Enter key to send
+// ── Keyboard ──
 document.getElementById('chatInput').addEventListener('keydown', e => {
     if (e.key === 'Enter') sendMessage();
 });
-
-// Enter key in vocab Chinese input to save
 document.getElementById('vocabChinese').addEventListener('keydown', e => {
     if (e.key === 'Enter') saveToVocab();
 });
+
+// ── Init ──
+loadRoles();
 </script>
 
 {% endblock %}

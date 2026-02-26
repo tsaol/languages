@@ -483,22 +483,54 @@ def chat():
     return render_template("chat.html", active_page="chat")
 
 
+@app.route("/api/chat/roles")
+@login_required
+def api_chat_roles():
+    """Get available chat roles with their scenarios."""
+    from englearn.scoring.llm_scorer import CHAT_ROLES
+    roles = {}
+    for rid, role in CHAT_ROLES.items():
+        roles[rid] = {
+            "name": role["name"],
+            "title": role["title"],
+            "description": role["description"],
+            "personality": role["personality"],
+            "scenarios": [
+                {
+                    "id": s["id"],
+                    "title": s["title"],
+                    "desc": s["desc"],
+                    "difficulty": s["difficulty"],
+                    "vocabulary": s.get("vocabulary", []),
+                }
+                for s in role.get("scenarios", [])
+            ],
+        }
+    return jsonify({"roles": roles})
+
+
 @app.route("/api/chat/send", methods=["POST"])
 @login_required
 def api_chat_send():
     data = request.get_json()
     role_id = data.get("role_id", "").strip()
     message = data.get("message", "").strip()
+    scenario_id = data.get("scenario_id", "").strip() or None
 
     if not role_id or not message:
         return jsonify({"error": "role_id and message are required"}), 400
 
-    from englearn.scoring.llm_scorer import CHAT_ROLES, chat_reply
+    from englearn.scoring.llm_scorer import CHAT_ROLES, chat_reply, get_chat_scenario
     if role_id not in CHAT_ROLES:
         return jsonify({"error": "Invalid role_id"}), 400
 
+    # Look up scenario if provided
+    scenario = None
+    if scenario_id:
+        scenario = get_chat_scenario(role_id, scenario_id)
+
     # Insert user message
-    insert_chat_message(role_id, "user", message)
+    insert_chat_message(role_id, "user", message, scenario_id=scenario_id)
 
     # Search for relevant memories
     memories = []
@@ -510,15 +542,16 @@ def api_chat_send():
     except Exception:
         pass
 
-    # Fetch history for context
-    history = get_chat_history(role_id, limit=20)
+    # Fetch history for context (filtered by scenario)
+    history = get_chat_history(role_id, limit=20, scenario_id=scenario_id)
 
-    # Get AI reply with memory context
-    result = chat_reply(role_id, message, history, memories=memories)
+    # Get AI reply with memory context and scenario
+    result = chat_reply(role_id, message, history, memories=memories, scenario=scenario)
 
     # Insert AI reply
     corrections_json = json.dumps(result.get("corrections", []))
-    insert_chat_message(role_id, role_id, result["reply"], corrections=corrections_json)
+    insert_chat_message(role_id, role_id, result["reply"],
+                        corrections=corrections_json, scenario_id=scenario_id)
 
     return jsonify({
         "reply": result["reply"],
@@ -526,16 +559,57 @@ def api_chat_send():
     })
 
 
+@app.route("/api/chat/start", methods=["POST"])
+@login_required
+def api_chat_start():
+    """Start a new chat session. Returns the AI's first message.
+
+    For scenarios, returns the scenario's first_message.
+    For free talk, returns the role's default first_message.
+    Clears previous history for this role+scenario combination.
+    """
+    data = request.get_json()
+    role_id = data.get("role_id", "").strip()
+    scenario_id = data.get("scenario_id", "").strip() or None
+
+    if not role_id:
+        return jsonify({"error": "role_id is required"}), 400
+
+    from englearn.scoring.llm_scorer import CHAT_ROLES, get_chat_scenario
+    role = CHAT_ROLES.get(role_id)
+    if not role:
+        return jsonify({"error": "Invalid role_id"}), 400
+
+    # Clear previous history for this role+scenario
+    clear_chat_history(role_id, scenario_id=scenario_id)
+
+    # Get first message
+    if scenario_id:
+        scenario = get_chat_scenario(role_id, scenario_id)
+        if scenario:
+            first_msg = scenario["first_message"]
+        else:
+            first_msg = role["first_message"]
+    else:
+        first_msg = role["first_message"]
+
+    # Store the first message as AI message
+    insert_chat_message(role_id, role_id, first_msg, scenario_id=scenario_id)
+
+    return jsonify({"first_message": first_msg})
+
+
 @app.route("/api/chat/history")
 @login_required
 def api_chat_history():
     role_id = request.args.get("role_id", "").strip()
+    scenario_id = request.args.get("scenario_id", "").strip() or None
     limit = int(request.args.get("limit", 20))
 
     if not role_id:
         return jsonify({"error": "role_id is required"}), 400
 
-    messages = get_chat_history(role_id, limit=limit)
+    messages = get_chat_history(role_id, limit=limit, scenario_id=scenario_id)
     # Parse corrections JSON for each message
     for msg in messages:
         if msg.get("corrections"):
