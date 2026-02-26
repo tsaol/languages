@@ -335,14 +335,14 @@ def cmd_stats(client, args):
     print(f"    Streak:       {data.get('streak', 0)} days")
     print()
 
-    # Weekly
+    # Last 7 Days (reverse chronological)
     weekly = data.get('weekly', [])
     if weekly:
-        print(f"  This Week")
+        print(f"  Last 7 Days")
         print(f"  {'─' * 45}")
-        for day in weekly:
+        for day in reversed(weekly):
             d = day.get('date', '')[-5:]
-            total = day.get('cards_reviewed', 0) + day.get('quiz_taken', 0)
+            total = day.get('cards_reviewed', 0) + day.get('talk_taken', 0)
             bar = '█' * min(total, 20) + '░' * max(0, 20 - total)
             print(f"    {d} [{bar}] {total}")
         print()

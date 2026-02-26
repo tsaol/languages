@@ -320,10 +320,9 @@
 
     <!-- Weekly Activity -->
     <div class="chart-section">
-        <div class="chart-title">This Week</div>
+        <div class="chart-title">Last 7 Days</div>
         <div class="weekly-grid">
-            {% set day_names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] %}
-            {% for day in weekly %}
+            {% for day in weekly|reverse %}
             {% set total_activity = day.cards_reviewed + day.quiz_taken %}
             <div class="day-cell {{ 'active' if total_activity > 0 else '' }}">
                 <div class="day-name">{{ day.date[5:] }}</div>
