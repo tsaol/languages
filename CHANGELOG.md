@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.5 (2026-02-26)
+
+- Chat memory: Mem0 integration for long-term semantic memory in Chat
+- Chat AI remembers user info, preferences, and past topics across conversations
+- Uses AWS Bedrock Titan Embed V2 for embeddings, local Qdrant for vector storage
+- Memory context injected into roleplay prompts for personalized responses
+- Graceful fallback: chat works normally if memory service unavailable
+
 ## 0.3.4 (2026-02-26)
 
 - New Chat feature: free-talk roleplay with AI characters (Sarah & James)

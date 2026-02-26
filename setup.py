@@ -11,6 +11,8 @@ setup(
     packages=find_packages(),
     install_requires=[
         'requests',
+        'mem0ai',
+        'qdrant-client',
     ],
     entry_points={
         'console_scripts': [

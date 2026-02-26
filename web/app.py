@@ -500,11 +500,21 @@ def api_chat_send():
     # Insert user message
     insert_chat_message(role_id, "user", message)
 
+    # Search for relevant memories
+    memories = []
+    try:
+        from englearn.memory.chat_memory import search_memories, store_message
+        memories = search_memories(user_id="default", query=message, limit=5)
+        # Store user message to memory for future recall
+        store_message(user_id="default", role_id=role_id, message=message)
+    except Exception:
+        pass
+
     # Fetch history for context
     history = get_chat_history(role_id, limit=20)
 
-    # Get AI reply
-    result = chat_reply(role_id, message, history)
+    # Get AI reply with memory context
+    result = chat_reply(role_id, message, history, memories=memories)
 
     # Insert AI reply
     corrections_json = json.dumps(result.get("corrections", []))
