@@ -3,7 +3,7 @@ import json
 import boto3
 
 BEDROCK_MODEL = "moonshotai.kimi-k2.5"
-BEDROCK_CHAT_MODEL = "mistral.mistral-large-3-675b-instruct"
+BEDROCK_CHAT_MODEL = "deepseek.v3.2"
 BEDROCK_REGION = "us-east-1"
 
 _client = None
