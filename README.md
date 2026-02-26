@@ -1,71 +1,57 @@
 # EngLearn
 
-Personal English learning system powered by SM-2 spaced repetition. Built from real daily interaction errors.
+Personal English learning system powered by SM-2 spaced repetition and LLM scoring. Built from real daily interaction errors.
 
-## Quick Start
-
-```bash
-git clone https://github.com/tsaol/languages.git
-cd languages
-pip install -e .
-englearn init        # import english.log + generate flashcards
-englearn vocab       # sync Notion vocabulary
-englearn pull        # pull progress from Notion (if switching devices)
-```
-
-## Usage
-
-### CLI Shortcuts
+## Install
 
 ```bash
-elv     # review vocab (10 cards)
-ele     # review expressions (10 cards)
-elr     # review all due cards (15 cards)
-elt     # conversation practice (5 rounds)
-elq     # quiz (10 questions)
-eld     # dashboard
+pip install git+https://github.com/tsaol/languages.git
 ```
 
-### Full Commands
+## CLI Usage
 
 ```bash
-englearn dashboard        # overview panel
-englearn review           # review due flashcards
-englearn review -d vocab  # review specific deck
-englearn quiz             # take a quiz
-englearn talk             # conversation practice
-englearn stats            # detailed statistics
-englearn weak             # show weakest areas
-englearn search "word"    # search entries
-englearn sync             # import new errors from english.log
-englearn vocab            # sync Notion vocabulary
-englearn push             # push progress to Notion
-englearn pull             # pull progress from Notion
+englearn login                # login to web server (first time only)
+englearn                      # show stats (default)
+englearn review               # review due flashcards (type answers)
+englearn review -d vocab      # review vocab deck only
+englearn talk                 # conversation practice (LLM scored)
+englearn talk -n 5            # 5 rounds only
+englearn stats                # learning statistics
+englearn vocab "negotiate"    # save a word (auto-translates to Chinese)
 ```
 
-### Web UI
+## Web UI
 
-```bash
-python3 web/app.py        # start on http://localhost:5555
-```
+Deployed at `http://<server>:5555` with dark theme, mobile-first design.
 
-## 3 Decks
-
-| Deck | Cards | Content |
-|------|-------|---------|
-| daily | 88 | Spelling, articles, sentence completion |
-| express | 659 | Translation, sentence patterns |
-| vocab | 147 | Curated work vocabulary from Notion |
+Pages: Review, Talk, Vocab, Stats
 
 ## Architecture
 
+```
+CLI (thin client)  ──HTTP──>  Flask Web Server  ──>  SQLite DB
+                                    ↑                    ↓
+Web Browser  ───────────────────────┘             Kimi K2.5 (Bedrock)
+```
+
+- **CLI**: Pure HTTP frontend, no direct DB access
+- **Web API**: Flask app with JSON endpoints + HTML templates
+- **LLM Scoring**: Kimi K2.5 on Amazon Bedrock for 6-dimension evaluation
+- **SM-2 Engine**: Spaced repetition for flashcards and talk scenarios
 - **Parser**: Extracts errors from ~/english.log
-- **SM-2 Engine**: Spaced repetition for flashcard scheduling
-- **Notion Sync**: Two-way sync for vocabulary and progress
-- **Web UI**: Flask app with dark theme, mobile-friendly
-- **Cron**: Daily auto-sync at 6am
+
+## Features
+
+- Typing-based flashcard review with auto-compare
+- Talk practice with LLM scoring (grammar, meaning, tone, fluency, pattern, vocabulary)
+- Error highlights with colored underlines
+- Any word tappable to save to Vocab (auto-translates)
+- Server-side session persistence
+- Dynamic scenario generation from your errors
+- Stats dashboard with today's activity and streak
 
 ## Data
 
-- Local: `data/englearn.db` (SQLite)
-- Cloud: Notion "English Vocabulary" + "Study Progress" databases
+- Server: `data/englearn.db` (SQLite)
+- Config: `~/.englearn_cli.json` (session cookies)
