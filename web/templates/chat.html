@@ -9,9 +9,12 @@
         display: flex;
         flex-direction: column;
         height: calc(100vh - 60px);
+        height: calc(100dvh - 60px);
         max-width: 480px;
         margin: 0 auto;
         padding: 0;
+        overflow: hidden;
+        position: relative;
     }
 
     /* ── Role Selection Screen ── */
@@ -384,6 +387,9 @@
         gap: 8px;
         align-items: center;
         flex-shrink: 0;
+        position: sticky;
+        bottom: 0;
+        z-index: 10;
     }
 
     .chat-input-area input {
@@ -422,6 +428,13 @@
     .send-btn:active { transform: scale(0.92); }
     .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
+    /* Action text *action* rendered as italic + dim */
+    .action-text {
+        font-style: italic;
+        color: var(--text-dim);
+        opacity: 0.85;
+    }
+
     /* Clickable words */
     .clickable-words .word {
         cursor: pointer;
@@ -430,6 +443,13 @@
         transition: background 0.15s;
     }
     .clickable-words .word:hover { background: var(--blue-dim); color: var(--blue); }
+
+    /* Don't style action words as clickable */
+    .action-text .word {
+        cursor: default;
+        color: var(--text-dim);
+    }
+    .action-text .word:hover { background: none; color: var(--text-dim); }
 
     .tap-hint {
         font-size: 0.62rem;
@@ -468,7 +488,7 @@
     </div>
 
     <!-- Screen 3: Chat Interface -->
-    <div id="chatArea" style="display:none; flex:1; flex-direction:column;">
+    <div id="chatArea" style="display:none; flex:1; flex-direction:column; min-height:0;">
         <div class="chat-header">
             <button class="back-btn" onclick="backToScenarios()">&#8592;</button>
             <div class="chat-header-info">
@@ -806,7 +826,19 @@ function scrollToBottom() {
 // ── Utils ──
 function makeWordsClickable(text) {
     if (!text) return '';
-    return text.replace(/([a-zA-Z'-]+)/g, '<span class="word" onclick="openVocabForm(this.textContent)">$1</span>');
+    // Split on *action* blocks — actions render as italic, not clickable
+    let result = '';
+    const parts = text.split(/(\*[^*]+\*)/g);
+    for (const part of parts) {
+        if (part.startsWith('*') && part.endsWith('*') && part.length > 2) {
+            const inner = esc(part.slice(1, -1));
+            result += '<span class="action-text">' + inner + '</span>';
+        } else {
+            result += esc(part).replace(/([a-zA-Z'-]+)/g,
+                '<span class="word" onclick="openVocabForm(this.textContent)">$1</span>');
+        }
+    }
+    return result;
 }
 
 function esc(s) {
