@@ -17,8 +17,10 @@ englearn cards                # flashcard practice (type answers)
 englearn cards -d vocab       # vocab deck only
 englearn talk                 # conversation practice (LLM scored)
 englearn talk -n 5            # 5 rounds only
+englearn talk --all           # practice even if all done today
 englearn stats                # learning statistics
 englearn vocab "negotiate"    # save a word (auto-translates to Chinese)
+englearn config               # show/set config (server URL)
 ```
 
 ## Web UI
