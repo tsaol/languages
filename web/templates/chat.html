@@ -450,6 +450,60 @@
         margin-top: 2px;
         padding: 0 4px;
     }
+
+    /* Delete confirmation */
+    .msg-row.selected .msg-bubble {
+        outline: 2px solid var(--red);
+        outline-offset: 2px;
+    }
+
+    .delete-bar {
+        display: none;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 100;
+        padding: 12px 20px;
+        padding-bottom: max(12px, env(safe-area-inset-bottom));
+        background: var(--surface);
+        border-top: 1px solid var(--border);
+        box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
+    }
+
+    .delete-bar-inner {
+        max-width: 480px;
+        margin: 0 auto;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .delete-bar .delete-label {
+        font-size: 0.85rem;
+        color: var(--text-dim);
+    }
+
+    .delete-bar .btn-del {
+        padding: 8px 20px;
+        font-size: 0.82rem;
+        font-weight: 600;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+    }
+
+    .delete-bar .btn-cancel {
+        background: var(--surface2);
+        color: var(--text-dim);
+        border: 1px solid var(--border);
+    }
+
+    .delete-bar .btn-confirm-del {
+        background: var(--red);
+        color: #fff;
+    }
 </style>
 {% endblock %}
 
@@ -494,6 +548,17 @@
             <input type="text" id="chatInput" placeholder="Type a message..."
                    spellcheck="true" autocapitalize="sentences" autocomplete="off">
             <button class="send-btn" id="sendBtn" onclick="sendMessage()">&#8593;</button>
+        </div>
+    </div>
+
+    <!-- Delete message bar -->
+    <div class="delete-bar" id="deleteBar">
+        <div class="delete-bar-inner">
+            <span class="delete-label">Delete this message?</span>
+            <div style="display:flex; gap:8px;">
+                <button class="btn-del btn-cancel" onclick="cancelDelete()">Cancel</button>
+                <button class="btn-del btn-confirm-del" onclick="confirmDelete()">Delete</button>
+            </div>
         </div>
     </div>
 
@@ -646,9 +711,9 @@ async function loadHistory() {
         if (data.messages && data.messages.length > 0) {
             data.messages.forEach(msg => {
                 if (msg.sender === 'user') {
-                    appendUserMessage(msg.message, msg.corrections || []);
+                    appendUserMessage(msg.message, msg.corrections || [], msg.id);
                 } else {
-                    appendAIMessage(msg.message);
+                    appendAIMessage(msg.message, msg.id);
                 }
             });
             scrollToBottom();
@@ -673,7 +738,7 @@ async function startNewSession() {
         });
         const data = await resp.json();
         if (data.first_message) {
-            appendAIMessage(data.first_message);
+            appendAIMessage(data.first_message, data.msg_id);
             scrollToBottom();
         }
     } catch (e) {
@@ -687,10 +752,60 @@ async function restartChat() {
 }
 
 // ── Message Display ──
-function appendUserMessage(text, corrections) {
+let deleteTargetId = null;
+let longPressTimer = null;
+
+function addLongPress(el, msgId) {
+    if (!msgId) return;
+    el.addEventListener('touchstart', e => {
+        longPressTimer = setTimeout(() => { selectForDelete(el, msgId); }, 500);
+    }, {passive: true});
+    el.addEventListener('touchend', () => clearTimeout(longPressTimer));
+    el.addEventListener('touchmove', () => clearTimeout(longPressTimer));
+    // Desktop: right-click
+    el.addEventListener('contextmenu', e => {
+        e.preventDefault();
+        selectForDelete(el, msgId);
+    });
+}
+
+function selectForDelete(rowEl, msgId) {
+    cancelDelete();
+    deleteTargetId = msgId;
+    rowEl.classList.add('selected');
+    document.getElementById('deleteBar').style.display = 'block';
+}
+
+function cancelDelete() {
+    deleteTargetId = null;
+    document.querySelectorAll('.msg-row.selected').forEach(el => el.classList.remove('selected'));
+    document.getElementById('deleteBar').style.display = 'none';
+}
+
+async function confirmDelete() {
+    if (!deleteTargetId) return;
+    try {
+        const resp = await fetch('/api/chat/delete-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message_id: deleteTargetId })
+        });
+        const data = await resp.json();
+        if (data.ok) {
+            const row = document.querySelector(`.msg-row[data-msg-id="${deleteTargetId}"]`);
+            if (row) row.remove();
+        }
+    } catch (e) {
+        console.error('Delete failed:', e);
+    }
+    cancelDelete();
+}
+
+function appendUserMessage(text, corrections, msgId) {
     const area = document.getElementById('messagesArea');
     const row = document.createElement('div');
     row.className = 'msg-row user';
+    if (msgId) row.setAttribute('data-msg-id', msgId);
 
     const bubble = document.createElement('div');
     bubble.className = 'msg-bubble';
@@ -709,13 +824,15 @@ function appendUserMessage(text, corrections) {
         row.appendChild(corrDiv);
     }
 
+    addLongPress(row, msgId);
     area.appendChild(row);
 }
 
-function appendAIMessage(text) {
+function appendAIMessage(text, msgId) {
     const area = document.getElementById('messagesArea');
     const row = document.createElement('div');
     row.className = 'msg-row ai';
+    if (msgId) row.setAttribute('data-msg-id', msgId);
 
     const bubble = document.createElement('div');
     bubble.className = 'msg-bubble clickable-words';
@@ -727,6 +844,7 @@ function appendAIMessage(text) {
     hint.textContent = 'Tap any word to save to Vocab';
     row.appendChild(hint);
 
+    addLongPress(row, msgId);
     area.appendChild(row);
 }
 
@@ -758,7 +876,7 @@ async function sendMessage() {
     document.getElementById('sendBtn').disabled = true;
     input.value = '';
 
-    appendUserMessage(text, []);
+    appendUserMessage(text, [], null);
     scrollToBottom();
     showTyping();
 
@@ -775,28 +893,32 @@ async function sendMessage() {
         const data = await resp.json();
         hideTyping();
 
-        // Update corrections on last user message
-        if (data.corrections && data.corrections.length > 0) {
-            const userRows = document.querySelectorAll('.msg-row.user');
-            const lastUserRow = userRows[userRows.length - 1];
-            if (lastUserRow) {
-                const existingCorr = lastUserRow.querySelector('.msg-corrections');
-                if (existingCorr) existingCorr.remove();
+        // Attach message ID to the user row
+        const userRows = document.querySelectorAll('.msg-row.user');
+        const lastUserRow = userRows[userRows.length - 1];
+        if (lastUserRow && data.user_msg_id) {
+            lastUserRow.setAttribute('data-msg-id', data.user_msg_id);
+            addLongPress(lastUserRow, data.user_msg_id);
+        }
 
-                const corrDiv = document.createElement('div');
-                corrDiv.className = 'msg-corrections';
-                data.corrections.forEach(c => {
-                    const item = document.createElement('div');
-                    item.className = 'correction-item';
-                    item.innerHTML = '"' + esc(c.wrong || '') + '" &rarr; <span class="correct-text">' + esc(c.correct || '') + '</span>';
-                    corrDiv.appendChild(item);
-                });
-                lastUserRow.appendChild(corrDiv);
-            }
+        // Update corrections on last user message
+        if (data.corrections && data.corrections.length > 0 && lastUserRow) {
+            const existingCorr = lastUserRow.querySelector('.msg-corrections');
+            if (existingCorr) existingCorr.remove();
+
+            const corrDiv = document.createElement('div');
+            corrDiv.className = 'msg-corrections';
+            data.corrections.forEach(c => {
+                const item = document.createElement('div');
+                item.className = 'correction-item';
+                item.innerHTML = '"' + esc(c.wrong || '') + '" &rarr; <span class="correct-text">' + esc(c.correct || '') + '</span>';
+                corrDiv.appendChild(item);
+            });
+            lastUserRow.appendChild(corrDiv);
         }
 
         if (data.reply) {
-            appendAIMessage(data.reply);
+            appendAIMessage(data.reply, data.ai_msg_id);
         }
         scrollToBottom();
     } catch (e) {

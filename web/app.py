@@ -26,6 +26,7 @@ from englearn.db.models import (
     insert_chat_message,
     get_chat_history,
     clear_chat_history,
+    delete_chat_message,
 )
 from englearn.db.database import get_connection, init_db
 
@@ -533,7 +534,7 @@ def api_chat_send():
         scenario = get_chat_scenario(role_id, scenario_id)
 
     # Insert user message
-    insert_chat_message(role_id, "user", message, scenario_id=scenario_id)
+    user_msg_id = insert_chat_message(role_id, "user", message, scenario_id=scenario_id)
 
     # Search for relevant memories
     memories = []
@@ -553,12 +554,14 @@ def api_chat_send():
 
     # Insert AI reply
     corrections_json = json.dumps(result.get("corrections", []))
-    insert_chat_message(role_id, role_id, result["reply"],
-                        corrections=corrections_json, scenario_id=scenario_id)
+    ai_msg_id = insert_chat_message(role_id, role_id, result["reply"],
+                                    corrections=corrections_json, scenario_id=scenario_id)
 
     return jsonify({
         "reply": result["reply"],
         "corrections": result.get("corrections", []),
+        "user_msg_id": user_msg_id,
+        "ai_msg_id": ai_msg_id,
     })
 
 
@@ -597,9 +600,9 @@ def api_chat_start():
         first_msg = role["first_message"]
 
     # Store the first message as AI message
-    insert_chat_message(role_id, role_id, first_msg, scenario_id=scenario_id)
+    msg_id = insert_chat_message(role_id, role_id, first_msg, scenario_id=scenario_id)
 
-    return jsonify({"first_message": first_msg})
+    return jsonify({"first_message": first_msg, "msg_id": msg_id})
 
 
 @app.route("/api/chat/history")
@@ -624,6 +627,18 @@ def api_chat_history():
             msg["corrections"] = []
 
     return jsonify({"messages": messages})
+
+
+@app.route("/api/chat/delete-message", methods=["POST"])
+@login_required
+def api_chat_delete_message():
+    """Delete a single chat message by ID."""
+    data = request.get_json()
+    msg_id = data.get("message_id")
+    if not msg_id:
+        return jsonify({"error": "message_id is required"}), 400
+    ok = delete_chat_message(msg_id)
+    return jsonify({"ok": ok})
 
 
 # ─── Stats Dashboard ─────────────────────────────────────────────────────────
