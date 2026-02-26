@@ -16,7 +16,7 @@
 
 <div id="talkHeader" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
     <h1 style="font-size:1.4em;">💬 Talk</h1>
-    <span class="badge badge-blue"><span id="roundNum">1</span> / {{ total }}</span>
+    <span class="badge badge-blue"><span id="roundNum">1</span> / <span id="totalNum">{{ total }}</span></span>
 </div>
 
 <div class="progress-track mb-8">
@@ -38,9 +38,10 @@
 
     <!-- Input -->
     <div style="position:relative; margin-bottom:12px;">
+        <div id="keywordHints" style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;"></div>
         <input type="text" id="userInput" placeholder="Type your response in English..."
             style="width:100%; padding:14px; background:var(--surface2); border:1px solid var(--border); border-radius:10px; color:var(--text); font-size:1rem; outline:none;"
-            autocomplete="off">
+            spellcheck="true" autocapitalize="sentences" autocomplete="off">
     </div>
     <button id="submitBtn" onclick="submitAnswer()" class="btn btn-accent w-full" style="margin-bottom:8px;">Send</button>
     <button onclick="skipRound()" class="btn btn-surface w-full" style="font-size:0.85rem;">Skip</button>
@@ -53,6 +54,8 @@
             <div style="font-size:0.85rem; color:var(--text-dim); margin-bottom:6px;">Your answer:</div>
             <div id="fbUserAnswer" style="font-size:0.95rem; margin-bottom:10px;"></div>
             <div id="fbDetail" style="display:none; font-size:0.85rem; color:var(--blue); margin-bottom:12px; padding:10px; background:var(--blue-dim); border-radius:8px;"></div>
+            <div id="fbDimensions" style="display:none; margin-bottom:12px;"></div>
+            <div id="fbMistake" style="display:none; font-size:0.82rem; color:var(--yellow); margin-bottom:12px; padding:10px; background:var(--yellow-dim); border-radius:8px;"></div>
             <div style="font-size:0.85rem; color:var(--accent); margin-bottom:6px;">Better expression:</div>
             <div id="fbBestAnswer" style="font-size:0.95rem; font-weight:500;"></div>
         </div>
@@ -64,9 +67,14 @@
 <div id="completeArea" style="display:none; text-align:center; padding:40px 0;">
     <div style="font-size:3.5rem; margin-bottom:16px;">🏆</div>
     <div class="text-lg font-bold" style="margin-bottom:8px;">Session Complete!</div>
-    <div id="completeStats" class="text-sm text-dim" style="margin-bottom:24px;"></div>
-    <a href="/talk" class="btn btn-accent" style="margin-right:8px;">Practice Again</a>
-    <a href="/" class="btn btn-surface">Review Cards</a>
+    <div id="completeStats" class="text-sm text-dim" style="margin-bottom:16px;"></div>
+    <!-- Failed items list (#5) -->
+    <div id="failedList" style="display:none; text-align:left; margin-bottom:20px;"></div>
+    <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
+        <button id="retryBtn" onclick="retryFailed()" class="btn btn-surface" style="display:none;">Retry Failed</button>
+        <a href="/talk" class="btn btn-accent">Practice Again</a>
+        <a href="/" class="btn btn-surface">Review Cards</a>
+    </div>
 </div>
 
 <script>
@@ -75,12 +83,14 @@ let scenarios = freshScenarios;
 let idx = 0;
 let correct = 0;
 let answered = 0;
+let failedItems = [];  // Track failed scenario indices (#5)
+let isRetryMode = false;
 
 function saveSession() {
     fetch('/talk/session', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ scenarios, idx, correct, answered, done: false }),
+        body: JSON.stringify({ scenarios, idx, correct, answered, failedItems, done: false }),
     });
 }
 
@@ -101,6 +111,7 @@ async function initSession() {
             idx = saved.idx;
             correct = saved.correct || 0;
             answered = saved.answered || 0;
+            failedItems = saved.failedItems || [];
         }
     } catch(e) {}
     showScene();
@@ -111,11 +122,25 @@ function showScene() {
     if (idx >= scenarios.length) { showComplete(); return; }
     const s = scenarios[idx];
     document.getElementById('roundNum').textContent = idx + 1;
+    document.getElementById('totalNum').textContent = scenarios.length;
     document.getElementById('sceneContext').textContent = s.context;
     document.getElementById('scenePattern').textContent = '🎯 ' + s.pattern;
     document.getElementById('aiSays').textContent = '"' + s.ai_says + '"';
     document.getElementById('userInput').value = '';
     document.getElementById('feedback').style.display = 'none';
+    // Show keyword hints extracted from good responses
+    const hints = new Set();
+    (s.good_responses||[]).forEach(r => {
+        r.split(/\s+/).forEach(w => {
+            const clean = w.toLowerCase().replace(/[^a-z]/g,'');
+            if (clean.length > 3 && !['this','that','have','with','from','your','they','them','what','when','will','would','could','should','there','their','about','just','been','into'].includes(clean))
+                hints.add(clean);
+        });
+    });
+    const hintEl = document.getElementById('keywordHints');
+    hintEl.innerHTML = [...hints].slice(0,5).map(h =>
+        `<span style="padding:3px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;font-size:0.75rem;color:var(--text-dim);">${h}</span>`
+    ).join('');
     document.getElementById('submitBtn').disabled = false;
     document.getElementById('submitBtn').textContent = 'Send';
     document.getElementById('userInput').focus();
@@ -139,13 +164,21 @@ async function submitAnswer() {
             context: s.context,
             pattern: s.pattern,
             ai_says: s.ai_says,
+            scenario_id: s.id || null,
         })
     });
     const data = await resp.json();
     document.getElementById('submitBtn').textContent = 'Send';
 
     answered++;
-    if (data.is_correct) correct++;
+    if (data.is_correct) {
+        correct++;
+    } else {
+        // Track failed for retry (#5)
+        if (!isRetryMode) {
+            failedItems.push(idx);
+        }
+    }
     saveSession();
 
     // Show feedback
@@ -160,6 +193,33 @@ async function submitAnswer() {
     } else {
         fbDetail.style.display = 'none';
     }
+
+    // Show dimensions
+    const dimEl = document.getElementById('fbDimensions');
+    if (data.dimensions && Object.keys(data.dimensions).length > 0) {
+        let html = '<div style="font-size:0.8rem; margin-bottom:6px; color:var(--text-dim);">Score Breakdown:</div>';
+        const labels = {grammar:'Grammar',meaning:'Meaning',tone:'Tone',fluency:'Fluency',pattern:'Pattern',vocabulary:'Vocab'};
+        for (const [k,v] of Object.entries(data.dimensions)) {
+            const pct = Math.round((v.score||0)*100);
+            const color = pct >= 70 ? 'var(--accent)' : pct >= 45 ? 'var(--yellow)' : 'var(--red)';
+            html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;font-size:0.78rem;">
+                <span style="width:60px;color:var(--text-dim);">${labels[k]||k}</span>
+                <div style="flex:1;height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;">
+                    <div style="width:${pct}%;height:100%;background:${color};border-radius:3px;"></div>
+                </div>
+                <span style="width:32px;text-align:right;color:${color};">${pct}%</span>
+            </div>`;
+        }
+        dimEl.innerHTML = html;
+        dimEl.style.display = 'block';
+    } else { dimEl.style.display = 'none'; }
+
+    // Show common mistake
+    const mistakeEl = document.getElementById('fbMistake');
+    if (data.common_mistake) {
+        mistakeEl.textContent = '⚠ Common mistake: ' + data.common_mistake;
+        mistakeEl.style.display = 'block';
+    } else { mistakeEl.style.display = 'none'; }
 
     if (data.score >= 0.70) {
         document.getElementById('feedbackIcon').textContent = '✅';
@@ -185,6 +245,8 @@ function skipRound() {
     document.getElementById('fbUserAnswer').textContent = '(skipped)';
     document.getElementById('fbBestAnswer').textContent = s.good_responses[0];
     document.getElementById('fbDetail').style.display = 'none';
+    document.getElementById('fbDimensions').style.display = 'none';
+    document.getElementById('fbMistake').style.display = 'none';
     document.getElementById('submitBtn').disabled = true;
 }
 
@@ -200,9 +262,42 @@ function showComplete() {
     document.getElementById('talkHeader').style.display = 'none';
     document.getElementById('completeArea').style.display = '';
     const pct = answered > 0 ? Math.round(correct / answered * 100) : 0;
+    const label = isRetryMode ? 'Retry' : 'Session';
     document.getElementById('completeStats').innerHTML =
-        answered + ' rounds, <strong>' + pct + '%</strong> accuracy.';
+        label + ': ' + answered + ' rounds, <strong>' + pct + '%</strong> accuracy.';
     document.getElementById('progressFill').style.width = '100%';
+
+    // Show retry button if there are failed items (#5)
+    if (failedItems.length > 0 && !isRetryMode) {
+        const listEl = document.getElementById('failedList');
+        let html = '<div class="card" style="padding:12px;"><div style="font-size:0.8rem; color:var(--red); font-weight:600; margin-bottom:8px;">❌ Failed (' + failedItems.length + '):</div>';
+        failedItems.forEach(fi => {
+            const s = freshScenarios[fi] || scenarios[fi];
+            if (s) html += '<div style="font-size:0.8rem; color:var(--text-dim); margin-bottom:4px;">• ' + s.pattern + '</div>';
+        });
+        html += '</div>';
+        listEl.innerHTML = html;
+        listEl.style.display = 'block';
+        document.getElementById('retryBtn').style.display = '';
+    }
+}
+
+function retryFailed() {
+    // Build retry scenario list from failed items (#5)
+    const retryScenarios = failedItems.map(fi => freshScenarios[fi] || scenarios[fi]).filter(Boolean);
+    if (retryScenarios.length === 0) return;
+
+    isRetryMode = true;
+    scenarios = retryScenarios;
+    idx = 0;
+    correct = 0;
+    answered = 0;
+    failedItems = [];
+
+    document.getElementById('completeArea').style.display = 'none';
+    document.getElementById('sceneArea').style.display = '';
+    document.getElementById('talkHeader').style.display = '';
+    showScene();
 }
 
 // Enter key to submit

@@ -1,6 +1,7 @@
 """EngLearn Web UI - Flask application for English learning."""
 import sys
 import os
+import json
 import random
 
 # Add parent so we can import englearn
@@ -16,8 +17,14 @@ from englearn.db.models import (
     get_deck_stats,
     record_daily_progress,
     record_quiz_result,
+    seed_talk_scenarios,
+    get_due_talk_scenarios,
+    update_talk_scenario_sm2,
+    insert_talk_scenario,
+    get_recent_error_entries,
+    cache_flashcard_example,
 )
-from englearn.db.database import get_connection
+from englearn.db.database import get_connection, init_db
 
 app = Flask(__name__)
 app.secret_key = 'englearn-secret-key-2026'
@@ -68,7 +75,41 @@ def logout():
 def review():
     deck = request.args.get("deck", "")
     cards = get_due_flashcards(deck=deck if deck else None, limit=50)
-    return render_template("review.html", deck=deck, cards=cards, total=len(cards))
+    # Count due talk scenarios for daily session button (#1)
+    init_db()
+    talk_due = 0
+    try:
+        from englearn.quiz.conversation import SCENARIO_TEMPLATES
+        seed_talk_scenarios(SCENARIO_TEMPLATES)
+        conn = get_connection()
+        today = datetime.now().strftime("%Y-%m-%d")
+        row = conn.execute(
+            "SELECT COUNT(*) as c FROM talk_scenarios WHERE next_review <= ?", (today,)
+        ).fetchone()
+        talk_due = row['c'] if row else 0
+        conn.close()
+    except Exception:
+        pass
+    return render_template("review.html", deck=deck, cards=cards, total=len(cards), talk_due=talk_due)
+
+
+@app.route("/daily")
+@login_required
+def daily_session():
+    """Unified daily session mixing review cards + talk scenarios (#1)."""
+    init_db()
+    from englearn.quiz.conversation import SCENARIO_TEMPLATES
+    seed_talk_scenarios(SCENARIO_TEMPLATES)
+    _generate_dynamic_scenarios()
+
+    # Get 5-8 due flashcards
+    cards = get_due_flashcards(limit=8)
+    # Get 2-3 due talk scenarios
+    scenarios = get_due_talk_scenarios(limit=3)
+    random.shuffle(scenarios)
+
+    return render_template("daily.html", cards=cards, scenarios=scenarios,
+                           total_cards=len(cards), total_scenarios=len(scenarios))
 
 
 @app.route("/review/answer", methods=["POST"])
@@ -93,13 +134,51 @@ def review_answer():
 @app.route("/talk")
 @login_required
 def talk():
-    from englearn.quiz.conversation import SCENARIO_TEMPLATES, _load_dynamic_scenarios
-    all_scenarios = list(SCENARIO_TEMPLATES)
-    dynamic = _load_dynamic_scenarios()
-    all_scenarios.extend(dynamic)
-    random.shuffle(all_scenarios)
-    scenarios = all_scenarios[:10]
+    from englearn.quiz.conversation import SCENARIO_TEMPLATES
+    # Ensure DB is up to date and seed templates
+    init_db()
+    seed_talk_scenarios(SCENARIO_TEMPLATES)
+    # Generate dynamic scenarios from recent errors (#6)
+    _generate_dynamic_scenarios()
+    # Load due scenarios with SM-2 (#3)
+    scenarios = get_due_talk_scenarios(limit=10)
+    random.shuffle(scenarios)
     return render_template("talk.html", scenarios=scenarios, total=len(scenarios))
+
+
+def _generate_dynamic_scenarios():
+    """Generate new Talk scenarios from recent english.log errors (#6)."""
+    from englearn.db.models import get_sync_state, set_sync_state
+    # Rate limit: max 5 per day
+    today = datetime.now().strftime("%Y-%m-%d")
+    gen_key = f"scenarios_generated_{today}"
+    count = int(get_sync_state(gen_key) or 0)
+    if count >= 5:
+        return
+
+    entries = get_recent_error_entries(limit=5 - count)
+    if not entries:
+        return
+
+    try:
+        from englearn.scoring.llm_scorer import generate_scenario
+        for entry in entries:
+            scenario = generate_scenario(
+                entry['original'], entry.get('corrected', ''), entry.get('pattern', '')
+            )
+            if scenario and scenario.get('context') and scenario.get('good_responses'):
+                insert_talk_scenario(
+                    context=scenario['context'],
+                    pattern=scenario.get('pattern', entry.get('pattern', '')),
+                    ai_says=scenario.get('ai_says', ''),
+                    good_responses=scenario.get('good_responses', []),
+                    source='generated',
+                    source_entry_id=entry['id'],
+                )
+                count += 1
+        set_sync_state(gen_key, str(count))
+    except Exception:
+        pass
 
 
 @app.route("/talk/session", methods=["GET"])
@@ -146,6 +225,7 @@ def talk_answer():
     context = data.get("context", "")
     pattern = data.get("pattern", "")
     ai_says = data.get("ai_says", "")
+    scenario_id = data.get("scenario_id")
 
     from englearn.scoring.llm_scorer import score_response
     result = score_response(context, pattern, ai_says, user_answer, good_responses)
@@ -161,12 +241,21 @@ def talk_answer():
     )
     record_daily_progress(quiz_taken=1, quiz_correct=1 if result["is_correct"] else 0)
 
+    # Update SM-2 for talk scenario (#3)
+    if scenario_id:
+        try:
+            update_talk_scenario_sm2(scenario_id, result["score"])
+        except Exception:
+            pass
+
     return jsonify({
         "ok": True,
         "score": result["score"],
         "is_correct": result["is_correct"],
         "best_response": best,
         "feedback": result.get("feedback", ""),
+        "dimensions": result.get("dimensions", {}),
+        "common_mistake": result.get("common_mistake", ""),
     })
 
 
@@ -264,6 +353,49 @@ def vocab_edit():
     finally:
         conn.close()
     return jsonify({"ok": True})
+
+
+# ─── Review Example Sentence (#4) ────────────────────────────────────────────
+
+
+@app.route("/review/example", methods=["POST"])
+@login_required
+def review_example():
+    """Generate or return cached example sentence for a flashcard."""
+    data = request.get_json()
+    card_id = data.get("card_id")
+    word = data.get("word", "")
+    chinese = data.get("chinese", "")
+    category = data.get("category", "")
+
+    if not card_id:
+        return jsonify({"error": "card_id required"}), 400
+
+    # Check cache first
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT example_sentence, collocation FROM flashcards WHERE id = ?", (card_id,)
+        ).fetchone()
+        if row and row['example_sentence']:
+            return jsonify({
+                "sentence": row['example_sentence'],
+                "collocation": row['collocation'] or "",
+            })
+    finally:
+        conn.close()
+
+    # Generate via LLM
+    try:
+        from englearn.scoring.llm_scorer import generate_example_sentence
+        result = generate_example_sentence(word, chinese, category)
+        sentence = result.get("sentence", "")
+        collocation = result.get("collocation", "")
+        if sentence:
+            cache_flashcard_example(card_id, sentence, collocation)
+        return jsonify({"sentence": sentence, "collocation": collocation})
+    except Exception as e:
+        return jsonify({"sentence": "", "collocation": "", "error": str(e)[:100]})
 
 
 # ─── API ──────────────────────────────────────────────────────────────────────

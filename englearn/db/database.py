@@ -18,7 +18,20 @@ def init_db():
     with open(SCHEMA_PATH, 'r') as f:
         conn.executescript(f.read())
     conn.commit()
+    # Run migrations for existing DBs
+    _migrate(conn)
     conn.close()
+
+
+def _migrate(conn):
+    """Add columns/tables that may be missing in older DBs."""
+    # Add example_sentence and collocation to flashcards
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(flashcards)").fetchall()}
+    if 'example_sentence' not in cols:
+        conn.execute("ALTER TABLE flashcards ADD COLUMN example_sentence TEXT")
+    if 'collocation' not in cols:
+        conn.execute("ALTER TABLE flashcards ADD COLUMN collocation TEXT")
+    conn.commit()
 
 
 def reset_db():

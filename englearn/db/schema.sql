@@ -39,6 +39,8 @@ CREATE TABLE IF NOT EXISTS flashcards (
     repetitions INTEGER DEFAULT 0,
     next_review TEXT,
     last_review TEXT,
+    example_sentence TEXT,
+    collocation TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -62,6 +64,24 @@ CREATE TABLE IF NOT EXISTS daily_progress (
     new_errors_imported INTEGER DEFAULT 0,
     streak_days INTEGER DEFAULT 0
 );
+
+CREATE TABLE IF NOT EXISTS talk_scenarios (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    context TEXT NOT NULL,
+    pattern TEXT NOT NULL,
+    ai_says TEXT NOT NULL,
+    good_responses TEXT NOT NULL,  -- JSON array
+    source TEXT DEFAULT 'template',  -- 'template', 'dynamic', 'generated'
+    source_entry_id INTEGER REFERENCES log_entries(id),
+    ease_factor REAL DEFAULT 2.5,
+    interval_days INTEGER DEFAULT 0,
+    repetitions INTEGER DEFAULT 0,
+    next_review TEXT,
+    last_review TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_talk_scenarios_next_review ON talk_scenarios(next_review);
 
 CREATE TABLE IF NOT EXISTS sync_state (
     key TEXT PRIMARY KEY,

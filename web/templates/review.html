@@ -94,6 +94,30 @@
         opacity: 0.6;
     }
 
+    /* Example sentence area (#4) */
+    .example-area {
+        margin-top: 14px;
+        font-size: 0.8rem;
+        color: var(--text-dim);
+        text-align: left;
+        width: 100%;
+        max-width: 100%;
+    }
+    .example-sentence {
+        font-style: italic;
+        color: var(--blue);
+        margin-bottom: 4px;
+    }
+    .example-collocation {
+        font-size: 0.75rem;
+        color: var(--text-dim);
+    }
+    .example-loading {
+        font-size: 0.75rem;
+        color: var(--text-dim);
+        opacity: 0.6;
+    }
+
     /* Rating buttons */
     .rating-bar {
         display: flex;
@@ -224,10 +248,11 @@
         </div>
     </div>
     <div class="deck-selector mt-8">
-        <a href="/review" class="deck-chip {{ 'active' if not deck else '' }}">All</a>
-        <a href="/review?deck=daily" class="deck-chip {{ 'active' if deck == 'daily' else '' }}">📅 Daily</a>
-        <a href="/review?deck=express" class="deck-chip {{ 'active' if deck == 'express' else '' }}">💬 Express</a>
-        <a href="/review?deck=vocab" class="deck-chip {{ 'active' if deck == 'vocab' else '' }}">📖 Vocab</a>
+        <a href="/daily" class="deck-chip" style="background:var(--accent-dim); color:var(--accent); border-color:var(--accent);">📋 Daily</a>
+        <a href="/" class="deck-chip {{ 'active' if not deck else '' }}">All</a>
+        <a href="/?deck=daily" class="deck-chip {{ 'active' if deck == 'daily' else '' }}">📅 Patterns</a>
+        <a href="/?deck=express" class="deck-chip {{ 'active' if deck == 'express' else '' }}">💬 Express</a>
+        <a href="/?deck=vocab" class="deck-chip {{ 'active' if deck == 'vocab' else '' }}">📖 Vocab</a>
     </div>
 </div>
 
@@ -261,6 +286,11 @@
                 <div class="flashcard-face flashcard-back">
                     <div class="face-label">Answer</div>
                     <div class="face-content" id="cardBack"></div>
+                    <!-- Example sentence area (#4) -->
+                    <div class="example-area" id="exampleArea" style="display:none;">
+                        <div class="example-sentence" id="exampleSentence"></div>
+                        <div class="example-collocation" id="exampleCollocation"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -286,10 +316,13 @@
     <div id="completeState" class="complete-state fade-in" style="display: none;">
         <div class="emoji">🏆</div>
         <div class="text-lg font-bold" style="margin-bottom: 8px;">Session Complete!</div>
-        <div id="sessionStats" class="text-sm text-dim" style="margin-bottom: 24px;"></div>
-        <div class="flex flex-col gap-8" style="max-width: 240px; margin: 0 auto;">
-            <a href="/review{% if deck %}?deck={{ deck }}{% endif %}" class="btn btn-accent w-full">Review More</a>
-            <a href="/" class="btn btn-surface w-full">Back to Review</a>
+        <div id="sessionStats" class="text-sm text-dim" style="margin-bottom: 16px;"></div>
+        <!-- Failed items (#5) -->
+        <div id="failedCardList" style="display:none; text-align:left; margin-bottom:16px;"></div>
+        <div class="flex flex-col gap-8" style="max-width: 280px; margin: 0 auto;">
+            <button id="retryFailedBtn" onclick="retryFailedCards()" class="btn btn-surface w-full" style="display:none;">Retry Failed</button>
+            <a href="/{% if deck %}?deck={{ deck }}{% endif %}" class="btn btn-accent w-full">Review More</a>
+            <a href="/talk" class="btn btn-surface w-full">💬 Practice Talking</a>
         </div>
     </div>
     {% endif %}
@@ -298,12 +331,15 @@
 {% if cards %}
 <script>
 (function() {
-    const cards = {{ cards | tojson }};
+    const allCards = {{ cards | tojson }};
+    let cards = allCards;
     let idx = 0;
     let isFlipped = false;
     let isAnimating = false;
     let sessionCorrect = 0;
     let sessionTotal = 0;
+    let failedCards = [];  // Track failed cards (#5)
+    let isRetryMode = false;
 
     function showCard() {
         if (idx >= cards.length) {
@@ -321,6 +357,13 @@
             hintEl.style.display = 'none';
         }
         document.getElementById('currentIdx').textContent = idx + 1;
+        document.getElementById('totalCount').textContent = cards.length;
+
+        // Reset example area
+        const exArea = document.getElementById('exampleArea');
+        exArea.style.display = 'none';
+        document.getElementById('exampleSentence').textContent = '';
+        document.getElementById('exampleCollocation').textContent = '';
 
         // Reset flip
         isFlipped = false;
@@ -333,12 +376,63 @@
         document.getElementById('reviewProgressFill').style.width = pct + '%';
     }
 
+    function loadExample(card) {
+        // Load example sentence for vocab cards (#4)
+        if (card.deck !== 'vocab') return;
+        if (card.example_sentence) {
+            showExample(card.example_sentence, card.collocation || '');
+            return;
+        }
+        // Extract word and chinese from card
+        const word = card.back || '';
+        let chinese = '';
+        if (card.front && card.front.includes('"')) {
+            const parts = card.front.split('"');
+            if (parts.length >= 2) chinese = parts[1];
+        }
+        let category = '';
+        if (card.hint && card.hint.startsWith('Category:')) {
+            category = card.hint.replace('Category: ', '');
+        }
+
+        const exArea = document.getElementById('exampleArea');
+        exArea.style.display = 'block';
+        document.getElementById('exampleSentence').textContent = 'Loading example...';
+        document.getElementById('exampleSentence').className = 'example-loading';
+
+        fetch('/review/example', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ card_id: card.id, word, chinese, category })
+        }).then(r => r.json()).then(data => {
+            if (data.sentence) {
+                showExample(data.sentence, data.collocation || '');
+            } else {
+                exArea.style.display = 'none';
+            }
+        }).catch(() => {
+            exArea.style.display = 'none';
+        });
+    }
+
+    function showExample(sentence, collocation) {
+        const exArea = document.getElementById('exampleArea');
+        const sentEl = document.getElementById('exampleSentence');
+        sentEl.className = 'example-sentence';
+        sentEl.textContent = '"' + sentence + '"';
+        exArea.style.display = 'block';
+        if (collocation) {
+            document.getElementById('exampleCollocation').textContent = '📖 ' + collocation;
+        }
+    }
+
     window.flipCard = function() {
         if (isAnimating) return;
-        if (isFlipped) return; // already flipped, wait for rating
+        if (isFlipped) return;
         isFlipped = true;
         document.getElementById('flashcard').classList.add('flipped');
-        // Show rating buttons after flip animation
+        // Load example sentence async (#4)
+        loadExample(cards[idx]);
         setTimeout(() => {
             document.getElementById('ratingBar').style.opacity = '1';
             document.getElementById('ratingBar').style.pointerEvents = 'auto';
@@ -351,9 +445,13 @@
 
         const card = cards[idx];
         sessionTotal++;
-        if (rating >= 2) sessionCorrect++;
+        if (rating >= 2) {
+            sessionCorrect++;
+        } else {
+            // Track failed card for retry (#5)
+            failedCards.push(card);
+        }
 
-        // Visual feedback
         const btns = document.querySelectorAll('.rating-btn');
         btns.forEach(b => b.classList.remove('pressed'));
         if (rating === 1) btns[0].classList.add('pressed');
@@ -385,14 +483,45 @@
         completeEl.style.display = '';
 
         const pct = sessionTotal > 0 ? Math.round(sessionCorrect / sessionTotal * 100) : 0;
+        const label = isRetryMode ? 'Retry' : 'Session';
         document.getElementById('sessionStats').innerHTML =
-            'You reviewed <strong>' + sessionTotal + '</strong> card' + (sessionTotal !== 1 ? 's' : '') +
+            label + ': <strong>' + sessionTotal + '</strong> card' + (sessionTotal !== 1 ? 's' : '') +
             ' with <strong>' + pct + '%</strong> accuracy.';
 
-        // Fill progress bar
         document.getElementById('reviewProgressFill').style.width = '100%';
         document.getElementById('reviewSubtitle').textContent = 'Session complete';
+
+        // Show retry button if failed cards exist (#5)
+        if (failedCards.length > 0 && !isRetryMode) {
+            const listEl = document.getElementById('failedCardList');
+            let html = '<div class="card" style="padding:12px;"><div style="font-size:0.8rem; color:var(--red); font-weight:600; margin-bottom:8px;">❌ Failed (' + failedCards.length + '):</div>';
+            failedCards.forEach(c => {
+                html += '<div style="font-size:0.8rem; color:var(--text-dim); margin-bottom:4px;">• ' + (c.back || c.front).substring(0, 50) + '</div>';
+            });
+            html += '</div>';
+            listEl.innerHTML = html;
+            listEl.style.display = 'block';
+            document.getElementById('retryFailedBtn').style.display = '';
+        }
     }
+
+    window.retryFailedCards = function() {
+        if (failedCards.length === 0) return;
+        isRetryMode = true;
+        cards = [...failedCards];
+        failedCards = [];
+        idx = 0;
+        sessionCorrect = 0;
+        sessionTotal = 0;
+
+        document.getElementById('completeState').style.display = 'none';
+        document.getElementById('failedCardList').style.display = 'none';
+        document.getElementById('retryFailedBtn').style.display = 'none';
+        document.getElementById('cardArea').style.display = '';
+        document.getElementById('reviewProgress').style.display = '';
+        document.getElementById('progressBadge').style.display = '';
+        showCard();
+    };
 
     showCard();
 })();

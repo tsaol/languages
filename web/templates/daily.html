@@ -1,0 +1,371 @@
+{% extends "base.html" %}
+{% set active_page = "review" %}
+
+{% block title %}EngLearn - Daily Practice{% endblock %}
+
+{% block head %}
+<style>
+    .phase-label {
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        padding: 4px 12px;
+        border-radius: 12px;
+        margin-bottom: 12px;
+        display: inline-block;
+    }
+    .phase-review { background: var(--blue-dim); color: var(--blue); }
+    .phase-talk { background: var(--accent-dim); color: var(--accent); }
+
+    .flashcard-container {
+        perspective: 1000px;
+        width: 100%;
+        min-height: 240px;
+        margin: 12px 0;
+        cursor: pointer;
+    }
+    .flashcard {
+        position: relative;
+        width: 100%;
+        min-height: 240px;
+        transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        transform-style: preserve-3d;
+    }
+    .flashcard.flipped { transform: rotateY(180deg); }
+    .flashcard-face {
+        position: absolute; top: 0; left: 0; width: 100%; min-height: 240px;
+        backface-visibility: hidden; -webkit-backface-visibility: hidden;
+        border-radius: var(--radius); padding: 24px 20px;
+        display: flex; flex-direction: column; justify-content: center;
+        align-items: center; text-align: center;
+        border: 1px solid var(--border);
+    }
+    .flashcard-front { background: linear-gradient(145deg, var(--surface) 0%, var(--surface2) 100%); }
+    .flashcard-back {
+        background: linear-gradient(145deg, #1a2720 0%, #1d2a23 100%);
+        border-color: var(--accent); transform: rotateY(180deg);
+    }
+    .face-label { font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px; }
+    .flashcard-front .face-label { color: var(--text-dim); }
+    .flashcard-back .face-label { color: var(--accent); }
+    .face-content { font-size: 1.05rem; line-height: 1.5; font-weight: 500; word-break: break-word; }
+    .face-hint { margin-top: 12px; font-size: 0.78rem; color: var(--text-dim); font-style: italic; }
+    .tap-hint { font-size: 0.7rem; color: var(--text-dim); margin-top: 10px; opacity: 0.6; }
+
+    .rating-bar { display: flex; gap: 8px; width: 100%; }
+    .rating-btn {
+        flex: 1; padding: 12px 6px; border-radius: var(--radius-sm);
+        border: 1px solid var(--border); background: var(--surface);
+        color: var(--text); font-size: 0.78rem; font-weight: 600;
+        cursor: pointer; transition: all 0.15s;
+        display: flex; flex-direction: column; align-items: center; gap: 3px;
+    }
+    .rating-btn:active { transform: scale(0.95); }
+    .rating-btn .rating-icon { font-size: 1.2rem; }
+    .rating-btn.r-fail { border-color: rgba(248, 113, 113, 0.3); }
+    .rating-btn.r-fail.pressed { background: var(--red-dim); border-color: var(--red); }
+    .rating-btn.r-hard { border-color: rgba(251, 191, 36, 0.3); }
+    .rating-btn.r-hard.pressed { background: var(--yellow-dim); border-color: var(--yellow); }
+    .rating-btn.r-easy { border-color: rgba(74, 222, 128, 0.3); }
+    .rating-btn.r-easy.pressed { background: var(--accent-dim); border-color: var(--accent); }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="container fade-in">
+
+{% if not cards and not scenarios %}
+<div style="text-align:center; padding:60px 20px;">
+    <div style="font-size:3.5rem; margin-bottom:16px;">🎉</div>
+    <div class="text-lg font-bold" style="margin-bottom:8px;">All caught up!</div>
+    <div class="text-sm text-dim" style="margin-bottom:24px;">No practice items due today.</div>
+    <a href="/" class="btn btn-accent">Back to Review</a>
+</div>
+{% else %}
+
+<div id="dailyHeader" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+    <h1 style="font-size:1.4em;">📋 Daily Practice</h1>
+    <span class="badge badge-blue"><span id="stepNum">1</span> / <span id="stepTotal">{{ total_cards + total_scenarios }}</span></span>
+</div>
+
+<div class="progress-track mb-8">
+    <div class="progress-fill" id="progressFill" style="width:0%"></div>
+</div>
+
+<!-- Review phase -->
+<div id="reviewPhase">
+    <div class="phase-label phase-review">🎴 Review Cards</div>
+    <div id="cardArea">
+        <div class="flashcard-container" onclick="flipCard()">
+            <div class="flashcard" id="flashcard">
+                <div class="flashcard-face flashcard-front">
+                    <div class="face-label">Question</div>
+                    <div class="face-content" id="cardFront"></div>
+                    <div class="face-hint" id="cardHint"></div>
+                    <div class="tap-hint">Tap to reveal</div>
+                </div>
+                <div class="flashcard-face flashcard-back">
+                    <div class="face-label">Answer</div>
+                    <div class="face-content" id="cardBack"></div>
+                </div>
+            </div>
+        </div>
+        <div class="rating-bar" id="ratingBar" style="opacity:0; pointer-events:none; transition:opacity 0.3s;">
+            <button class="rating-btn r-fail" onclick="submitRating(1)"><span class="rating-icon">❌</span><span>Don't know</span></button>
+            <button class="rating-btn r-hard" onclick="submitRating(2)"><span class="rating-icon">🤔</span><span>Hesitated</span></button>
+            <button class="rating-btn r-easy" onclick="submitRating(3)"><span class="rating-icon">✅</span><span>Easy</span></button>
+        </div>
+    </div>
+</div>
+
+<!-- Talk phase -->
+<div id="talkPhase" style="display:none;">
+    <div class="phase-label phase-talk">💬 Talk Practice</div>
+    <div class="card" style="margin-bottom:12px;">
+        <div class="card-title">Scenario</div>
+        <div id="talkContext" style="font-size:0.95rem; margin-bottom:10px;"></div>
+        <div style="font-size:0.8rem; color:var(--accent);" id="talkPattern"></div>
+    </div>
+    <div class="card" style="margin-bottom:14px; border-color:var(--blue);">
+        <div style="font-size:0.7rem; color:var(--blue); font-weight:600; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:6px;">AI says</div>
+        <div id="talkAiSays" style="font-size:1rem; font-style:italic;"></div>
+    </div>
+    <div style="margin-bottom:12px;">
+        <div id="talkHints" style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;"></div>
+        <input type="text" id="talkInput" placeholder="Type your response..."
+            style="width:100%; padding:14px; background:var(--surface2); border:1px solid var(--border); border-radius:10px; color:var(--text); font-size:1rem; outline:none;"
+            spellcheck="true" autocapitalize="sentences" autocomplete="off">
+    </div>
+    <button id="talkSubmitBtn" onclick="submitTalk()" class="btn btn-accent w-full" style="margin-bottom:8px;">Send</button>
+    <button onclick="skipTalk()" class="btn btn-surface w-full" style="font-size:0.85rem;">Skip</button>
+    <div id="talkFeedback" style="display:none; margin-top:16px;">
+        <div class="card">
+            <div id="talkFbIcon" style="font-size:2rem; text-align:center; margin-bottom:8px;"></div>
+            <div id="talkFbText" style="text-align:center; font-weight:600; margin-bottom:10px;"></div>
+            <div style="font-size:0.85rem; color:var(--text-dim); margin-bottom:4px;">Your answer:</div>
+            <div id="talkFbUser" style="font-size:0.95rem; margin-bottom:8px;"></div>
+            <div id="talkFbDetail" style="display:none; font-size:0.85rem; color:var(--blue); margin-bottom:10px; padding:8px; background:var(--blue-dim); border-radius:8px;"></div>
+            <div style="font-size:0.85rem; color:var(--accent); margin-bottom:4px;">Better expression:</div>
+            <div id="talkFbBest" style="font-size:0.95rem; font-weight:500;"></div>
+        </div>
+        <button onclick="nextStep()" class="btn btn-accent w-full mt-8">Next</button>
+    </div>
+</div>
+
+<!-- Complete -->
+<div id="completeArea" style="display:none; text-align:center; padding:40px 0;">
+    <div style="font-size:3.5rem; margin-bottom:16px;">🏆</div>
+    <div class="text-lg font-bold" style="margin-bottom:8px;">Daily Practice Complete!</div>
+    <div id="completeStats" class="text-sm text-dim" style="margin-bottom:24px;"></div>
+    <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
+        <a href="/" class="btn btn-accent">Back to Review</a>
+        <a href="/talk" class="btn btn-surface">More Talk</a>
+    </div>
+</div>
+
+<script>
+const cards = {{ cards | tojson }};
+const scenarios = {{ scenarios | tojson }};
+const totalSteps = cards.length + scenarios.length;
+let step = 0;
+let cardIdx = 0;
+let talkIdx = 0;
+let isFlipped = false;
+let isAnimating = false;
+let reviewCorrect = 0, reviewTotal = 0;
+let talkCorrect = 0, talkTotal = 0;
+
+function updateProgress() {
+    document.getElementById('stepNum').textContent = step + 1;
+    document.getElementById('stepTotal').textContent = totalSteps;
+    document.getElementById('progressFill').style.width = (step / totalSteps * 100) + '%';
+}
+
+function showStep() {
+    updateProgress();
+    if (cardIdx < cards.length) {
+        // Review phase
+        document.getElementById('reviewPhase').style.display = '';
+        document.getElementById('talkPhase').style.display = 'none';
+        showCard();
+    } else if (talkIdx < scenarios.length) {
+        // Talk phase
+        document.getElementById('reviewPhase').style.display = 'none';
+        document.getElementById('talkPhase').style.display = '';
+        showTalk();
+    } else {
+        showComplete();
+    }
+}
+
+function showCard() {
+    const card = cards[cardIdx];
+    document.getElementById('cardFront').textContent = card.front;
+    document.getElementById('cardBack').textContent = card.back;
+    const hint = document.getElementById('cardHint');
+    hint.textContent = card.hint || '';
+    hint.style.display = card.hint ? '' : 'none';
+    isFlipped = false;
+    document.getElementById('flashcard').classList.remove('flipped');
+    document.getElementById('ratingBar').style.opacity = '0';
+    document.getElementById('ratingBar').style.pointerEvents = 'none';
+}
+
+window.flipCard = function() {
+    if (isAnimating || isFlipped) return;
+    isFlipped = true;
+    document.getElementById('flashcard').classList.add('flipped');
+    setTimeout(() => {
+        document.getElementById('ratingBar').style.opacity = '1';
+        document.getElementById('ratingBar').style.pointerEvents = 'auto';
+    }, 300);
+};
+
+window.submitRating = function(rating) {
+    if (isAnimating) return;
+    isAnimating = true;
+    const card = cards[cardIdx];
+    reviewTotal++;
+    if (rating >= 2) reviewCorrect++;
+
+    const btns = document.querySelectorAll('.rating-btn');
+    btns.forEach(b => b.classList.remove('pressed'));
+    btns[rating - 1].classList.add('pressed');
+
+    fetch('/review/answer', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({card_id: card.id, rating: rating})
+    }).then(r => r.json()).then(() => {
+        setTimeout(() => {
+            cardIdx++;
+            step++;
+            isAnimating = false;
+            showStep();
+        }, 350);
+    }).catch(() => { isAnimating = false; cardIdx++; step++; showStep(); });
+};
+
+function showTalk() {
+    const s = scenarios[talkIdx];
+    document.getElementById('talkContext').textContent = s.context;
+    document.getElementById('talkPattern').textContent = '🎯 ' + s.pattern;
+    document.getElementById('talkAiSays').textContent = '"' + s.ai_says + '"';
+    document.getElementById('talkInput').value = '';
+    document.getElementById('talkFeedback').style.display = 'none';
+    document.getElementById('talkSubmitBtn').disabled = false;
+    document.getElementById('talkSubmitBtn').textContent = 'Send';
+
+    // Keyword hints
+    const hints = new Set();
+    (s.good_responses||[]).forEach(r => {
+        r.split(/\s+/).forEach(w => {
+            const c = w.toLowerCase().replace(/[^a-z]/g,'');
+            if (c.length > 3 && !['this','that','have','with','from','your','they','them','what','when','will','would','could','should','there','their','about','just','been','into'].includes(c))
+                hints.add(c);
+        });
+    });
+    document.getElementById('talkHints').innerHTML = [...hints].slice(0,4).map(h =>
+        `<span style="padding:3px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;font-size:0.75rem;color:var(--text-dim);">${h}</span>`
+    ).join('');
+    document.getElementById('talkInput').focus();
+}
+
+window.submitTalk = async function() {
+    const input = document.getElementById('talkInput').value.trim();
+    if (!input) return;
+    document.getElementById('talkSubmitBtn').disabled = true;
+    document.getElementById('talkSubmitBtn').textContent = 'Scoring...';
+
+    const s = scenarios[talkIdx];
+    const resp = await fetch('/talk/answer', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            answer: input, good_responses: s.good_responses,
+            context: s.context, pattern: s.pattern, ai_says: s.ai_says,
+            scenario_id: s.id || null,
+        })
+    });
+    const data = await resp.json();
+    document.getElementById('talkSubmitBtn').textContent = 'Send';
+    talkTotal++;
+    if (data.is_correct) talkCorrect++;
+
+    document.getElementById('talkFeedback').style.display = 'block';
+    document.getElementById('talkFbUser').textContent = input;
+    document.getElementById('talkFbBest').textContent = data.best_response;
+    if (data.feedback) {
+        document.getElementById('talkFbDetail').textContent = data.feedback;
+        document.getElementById('talkFbDetail').style.display = 'block';
+    } else {
+        document.getElementById('talkFbDetail').style.display = 'none';
+    }
+
+    if (data.score >= 0.70) {
+        document.getElementById('talkFbIcon').textContent = '✅';
+        document.getElementById('talkFbText').textContent = 'Excellent!';
+        document.getElementById('talkFbText').style.color = 'var(--accent)';
+    } else if (data.score >= 0.45) {
+        document.getElementById('talkFbIcon').textContent = '⚠️';
+        document.getElementById('talkFbText').textContent = 'Close!';
+        document.getElementById('talkFbText').style.color = 'var(--yellow)';
+    } else {
+        document.getElementById('talkFbIcon').textContent = '❌';
+        document.getElementById('talkFbText').textContent = 'Study the example.';
+        document.getElementById('talkFbText').style.color = 'var(--red)';
+    }
+};
+
+window.skipTalk = function() {
+    const s = scenarios[talkIdx];
+    document.getElementById('talkFeedback').style.display = 'block';
+    document.getElementById('talkFbIcon').textContent = '⏭️';
+    document.getElementById('talkFbText').textContent = 'Skipped';
+    document.getElementById('talkFbText').style.color = 'var(--text-dim)';
+    document.getElementById('talkFbUser').textContent = '(skipped)';
+    document.getElementById('talkFbBest').textContent = s.good_responses[0];
+    document.getElementById('talkFbDetail').style.display = 'none';
+    document.getElementById('talkSubmitBtn').disabled = true;
+};
+
+window.nextStep = function() {
+    talkIdx++;
+    step++;
+    showStep();
+};
+
+function showComplete() {
+    document.getElementById('reviewPhase').style.display = 'none';
+    document.getElementById('talkPhase').style.display = 'none';
+    document.getElementById('dailyHeader').style.display = 'none';
+    document.getElementById('completeArea').style.display = '';
+    document.getElementById('progressFill').style.width = '100%';
+
+    let html = '';
+    if (reviewTotal > 0) {
+        const rpct = Math.round(reviewCorrect / reviewTotal * 100);
+        html += '🎴 Review: ' + reviewTotal + ' cards, <strong>' + rpct + '%</strong><br>';
+    }
+    if (talkTotal > 0) {
+        const tpct = Math.round(talkCorrect / talkTotal * 100);
+        html += '💬 Talk: ' + talkTotal + ' rounds, <strong>' + tpct + '%</strong><br>';
+    }
+    const total = reviewTotal + talkTotal;
+    const totalCorrect = reviewCorrect + talkCorrect;
+    if (total > 0) {
+        html += '<br>Overall: <strong>' + Math.round(totalCorrect / total * 100) + '%</strong> accuracy';
+    }
+    document.getElementById('completeStats').innerHTML = html;
+}
+
+document.getElementById('talkInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') submitTalk();
+});
+
+showStep();
+</script>
+{% endif %}
+</div>
+{% endblock %}

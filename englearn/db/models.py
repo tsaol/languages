@@ -1,4 +1,5 @@
 """Data access layer for EngLearn database."""
+import json
 from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Tuple
 from englearn.db.database import get_connection
@@ -256,5 +257,160 @@ def search_entries(keyword: str) -> List[dict]:
             (pattern, pattern, pattern, pattern)
         ).fetchall()
         return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+# ─── Talk Scenarios ──────────────────────────────────────────────────────────
+
+
+def seed_talk_scenarios(templates: list):
+    """Seed talk_scenarios table from SCENARIO_TEMPLATES if empty."""
+    conn = get_connection()
+    try:
+        count = conn.execute("SELECT COUNT(*) as c FROM talk_scenarios WHERE source='template'").fetchone()['c']
+        if count > 0:
+            return
+        today = datetime.now().strftime("%Y-%m-%d")
+        for t in templates:
+            conn.execute(
+                """INSERT INTO talk_scenarios (context, pattern, ai_says, good_responses, source, next_review)
+                   VALUES (?, ?, ?, ?, 'template', ?)""",
+                (t['context'], t['pattern'], t['ai_says'], json.dumps(t['good_responses']), today)
+            )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_due_talk_scenarios(limit: int = 10) -> List[dict]:
+    """Get talk scenarios due for review (SM-2 based)."""
+    conn = get_connection()
+    try:
+        today = datetime.now().strftime("%Y-%m-%d")
+        rows = conn.execute(
+            """SELECT * FROM talk_scenarios
+               WHERE next_review <= ?
+               ORDER BY ease_factor ASC, next_review ASC
+               LIMIT ?""",
+            (today, limit)
+        ).fetchall()
+        result = []
+        for r in rows:
+            d = dict(r)
+            d['good_responses'] = json.loads(d['good_responses'])
+            result.append(d)
+
+        # Fallback: if not enough due, add random ones
+        if len(result) < limit:
+            existing_ids = [r['id'] for r in result]
+            placeholders = ','.join('?' * len(existing_ids)) if existing_ids else '0'
+            extra = conn.execute(
+                f"""SELECT * FROM talk_scenarios
+                    WHERE id NOT IN ({placeholders})
+                    ORDER BY RANDOM() LIMIT ?""",
+                existing_ids + [limit - len(result)]
+            ).fetchall()
+            for r in extra:
+                d = dict(r)
+                d['good_responses'] = json.loads(d['good_responses'])
+                result.append(d)
+
+        return result
+    finally:
+        conn.close()
+
+
+def update_talk_scenario_sm2(scenario_id: int, score: float):
+    """Update a talk scenario using SM-2 algorithm based on LLM score."""
+    from englearn.config import SM2_MIN_EASE
+    conn = get_connection()
+    try:
+        row = conn.execute("SELECT * FROM talk_scenarios WHERE id = ?", (scenario_id,)).fetchone()
+        if not row:
+            return
+        card = dict(row)
+        ef = card['ease_factor']
+        interval = card['interval_days']
+        reps = card['repetitions']
+
+        # Map score to SM-2 quality
+        if score >= 0.7:
+            quality = 5
+        elif score >= 0.45:
+            quality = 3
+        else:
+            quality = 1
+
+        if quality >= 3:
+            if reps == 0:
+                interval = 1
+            elif reps == 1:
+                interval = 6
+            else:
+                interval = round(interval * ef)
+            reps += 1
+        else:
+            reps = 0
+            interval = 1
+
+        ef = max(SM2_MIN_EASE, ef + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02)))
+        next_review = (datetime.now() + timedelta(days=interval)).strftime("%Y-%m-%d")
+        today = datetime.now().strftime("%Y-%m-%d")
+
+        conn.execute(
+            """UPDATE talk_scenarios SET ease_factor=?, interval_days=?, repetitions=?,
+               next_review=?, last_review=? WHERE id=?""",
+            (ef, interval, reps, next_review, today, scenario_id)
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def insert_talk_scenario(context: str, pattern: str, ai_says: str,
+                         good_responses: list, source: str = 'generated',
+                         source_entry_id: int = None) -> int:
+    """Insert a new talk scenario."""
+    conn = get_connection()
+    try:
+        today = datetime.now().strftime("%Y-%m-%d")
+        cur = conn.execute(
+            """INSERT INTO talk_scenarios (context, pattern, ai_says, good_responses, source, source_entry_id, next_review)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (context, pattern, ai_says, json.dumps(good_responses), source, source_entry_id, today)
+        )
+        conn.commit()
+        return cur.lastrowid
+    finally:
+        conn.close()
+
+
+def get_recent_error_entries(limit: int = 10) -> List[dict]:
+    """Get recent incorrect entries that don't already have generated scenarios."""
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            """SELECT le.* FROM log_entries le
+               WHERE le.status = 'incorrect'
+                 AND le.pattern IS NOT NULL AND le.pattern != 'N/A' AND le.pattern != ''
+                 AND le.id NOT IN (SELECT source_entry_id FROM talk_scenarios WHERE source_entry_id IS NOT NULL)
+               ORDER BY le.id DESC LIMIT ?""",
+            (limit,)
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def cache_flashcard_example(card_id: int, sentence: str, collocation: str):
+    """Cache example sentence and collocation for a flashcard."""
+    conn = get_connection()
+    try:
+        conn.execute(
+            "UPDATE flashcards SET example_sentence=?, collocation=? WHERE id=?",
+            (sentence, collocation, card_id)
+        )
+        conn.commit()
     finally:
         conn.close()
