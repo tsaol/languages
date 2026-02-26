@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.1 (2026-02-26)
+
+- CLI command `review` renamed to `cards`
+- Rename "Quiz" to "Talk" in stats display for consistency
+- Rename "This Week" to "Last 7 Days" in stats, reverse chronological order
+- Vocab cards now use LLM-generated fill-in-the-blank sentences
+- Strict spelling match for single words (95% similarity threshold)
+- Add `--all` flag to `englearn talk` for practicing when all done
+- Remove all emojis from CLI output
+- Default counts: cards 30, talk 20
+
 ## 0.3.0 (2026-02-26)
 
 - CLI rewritten as thin HTTP client calling web API (no direct DB access)
