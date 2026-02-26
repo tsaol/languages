@@ -332,14 +332,57 @@
 <script>
 (function() {
     const allCards = {{ cards | tojson }};
+    const currentDeck = '{{ deck }}';
     let cards = allCards;
     let idx = 0;
     let isFlipped = false;
     let isAnimating = false;
     let sessionCorrect = 0;
     let sessionTotal = 0;
-    let failedCards = [];  // Track failed cards (#5)
+    let failedCards = [];
     let isRetryMode = false;
+
+    function saveSession() {
+        fetch('/review/session', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                cardIds: cards.map(c => c.id),
+                idx, sessionCorrect, sessionTotal,
+                failedCardIds: failedCards.map(c => c.id),
+                deck: currentDeck, done: false
+            })
+        });
+    }
+
+    function clearSession() {
+        fetch('/review/session', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ done: true })
+        });
+    }
+
+    async function initSession() {
+        try {
+            const resp = await fetch('/review/session');
+            const saved = await resp.json();
+            if (saved && !saved.done && saved.deck === currentDeck && saved.cardIds && saved.idx < saved.cardIds.length) {
+                // Restore progress - match saved card IDs to current cards
+                const cardMap = {};
+                allCards.forEach(c => cardMap[c.id] = c);
+                const restored = saved.cardIds.map(id => cardMap[id]).filter(Boolean);
+                if (restored.length > 0) {
+                    cards = restored;
+                    idx = saved.idx || 0;
+                    sessionCorrect = saved.sessionCorrect || 0;
+                    sessionTotal = saved.sessionTotal || 0;
+                    failedCards = (saved.failedCardIds || []).map(id => cardMap[id]).filter(Boolean);
+                }
+            }
+        } catch(e) {}
+        showCard();
+    }
 
     function showCard() {
         if (idx >= cards.length) {
@@ -374,6 +417,7 @@
         // Update progress
         const pct = (idx / cards.length) * 100;
         document.getElementById('reviewProgressFill').style.width = pct + '%';
+        saveSession();
     }
 
     function loadExample(card) {
@@ -476,6 +520,7 @@
     };
 
     function showComplete() {
+        clearSession();
         document.getElementById('cardArea').style.display = 'none';
         document.getElementById('reviewProgress').style.display = 'none';
         document.getElementById('progressBadge').style.display = 'none';
@@ -523,7 +568,7 @@
         showCard();
     };
 
-    showCard();
+    initSession();
 })();
 </script>
 {% endif %}

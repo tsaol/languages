@@ -112,6 +112,68 @@ def daily_session():
                            total_cards=len(cards), total_scenarios=len(scenarios))
 
 
+@app.route("/review/session", methods=["GET"])
+@login_required
+def review_session_load():
+    """Load saved review session."""
+    conn = get_connection()
+    try:
+        row = conn.execute("SELECT value FROM sync_state WHERE key = 'review_session'").fetchone()
+        if row:
+            return jsonify(json.loads(row["value"]))
+        return jsonify(None)
+    finally:
+        conn.close()
+
+
+@app.route("/review/session", methods=["POST"])
+@login_required
+def review_session_save():
+    """Save review session progress."""
+    data = request.get_json()
+    conn = get_connection()
+    try:
+        conn.execute(
+            "INSERT OR REPLACE INTO sync_state (key, value) VALUES ('review_session', ?)",
+            (json.dumps(data),)
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/daily/session", methods=["GET"])
+@login_required
+def daily_session_load():
+    """Load saved daily session."""
+    conn = get_connection()
+    try:
+        row = conn.execute("SELECT value FROM sync_state WHERE key = 'daily_session'").fetchone()
+        if row:
+            return jsonify(json.loads(row["value"]))
+        return jsonify(None)
+    finally:
+        conn.close()
+
+
+@app.route("/daily/session", methods=["POST"])
+@login_required
+def daily_session_save():
+    """Save daily session progress."""
+    data = request.get_json()
+    conn = get_connection()
+    try:
+        conn.execute(
+            "INSERT OR REPLACE INTO sync_state (key, value) VALUES ('daily_session', ?)",
+            (json.dumps(data),)
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({"ok": True})
+
+
 @app.route("/review/answer", methods=["POST"])
 @login_required
 def review_answer():

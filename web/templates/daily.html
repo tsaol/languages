@@ -176,6 +176,43 @@ let isAnimating = false;
 let reviewCorrect = 0, reviewTotal = 0;
 let talkCorrect = 0, talkTotal = 0;
 
+function saveSession() {
+    fetch('/daily/session', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            step, cardIdx, talkIdx,
+            reviewCorrect, reviewTotal, talkCorrect, talkTotal,
+            done: false
+        })
+    });
+}
+
+function clearSession() {
+    fetch('/daily/session', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ done: true })
+    });
+}
+
+async function initSession() {
+    try {
+        const resp = await fetch('/daily/session');
+        const saved = await resp.json();
+        if (saved && !saved.done && saved.step !== undefined && saved.step < totalSteps) {
+            step = saved.step || 0;
+            cardIdx = saved.cardIdx || 0;
+            talkIdx = saved.talkIdx || 0;
+            reviewCorrect = saved.reviewCorrect || 0;
+            reviewTotal = saved.reviewTotal || 0;
+            talkCorrect = saved.talkCorrect || 0;
+            talkTotal = saved.talkTotal || 0;
+        }
+    } catch(e) {}
+    showStep();
+}
+
 function updateProgress() {
     document.getElementById('stepNum').textContent = step + 1;
     document.getElementById('stepTotal').textContent = totalSteps;
@@ -184,6 +221,7 @@ function updateProgress() {
 
 function showStep() {
     updateProgress();
+    saveSession();
     if (cardIdx < cards.length) {
         // Review phase
         document.getElementById('reviewPhase').style.display = '';
@@ -337,6 +375,7 @@ window.nextStep = function() {
 };
 
 function showComplete() {
+    clearSession();
     document.getElementById('reviewPhase').style.display = 'none';
     document.getElementById('talkPhase').style.display = 'none';
     document.getElementById('dailyHeader').style.display = 'none';
@@ -364,7 +403,7 @@ document.getElementById('talkInput').addEventListener('keydown', e => {
     if (e.key === 'Enter') submitTalk();
 });
 
-showStep();
+initSession();
 </script>
 {% endif %}
 </div>
