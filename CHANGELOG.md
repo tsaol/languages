@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.4 (2026-02-26)
+
+- New Chat feature: free-talk roleplay with AI characters (Sarah & James)
+- Chat uses Mistral Large 3 (675B) on Bedrock for natural conversation
+- Sarah: American tech PM, casual work topics
+- James: British English teacher, challenges with idioms
+- Web UI: /chat page with role selection, chat bubbles, inline corrections
+- CLI: `englearn chat` / `englearn chat -r sarah`
+- API: /api/chat/send, /api/chat/history
+- Chat history persisted per role
+- Centralized version management (single source in __init__.py)
+
 ## 0.3.2 (2026-02-26)
 
 - Fix: `/api/sync-log` endpoint missing authentication (security)
