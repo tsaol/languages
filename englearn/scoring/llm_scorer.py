@@ -3,6 +3,7 @@ import json
 import boto3
 
 BEDROCK_MODEL = "moonshotai.kimi-k2.5"
+BEDROCK_CHAT_MODEL = "mistral.mistral-large-3-675b-instruct"
 BEDROCK_REGION = "us-east-1"
 
 _client = None
@@ -165,7 +166,19 @@ Respond as JSON only:
 
     raw_text = ""
     try:
-        raw_text = _invoke_model(prompt, max_tokens=500)
+        client = _get_client()
+        resp = client.invoke_model(
+            modelId=BEDROCK_CHAT_MODEL,
+            contentType="application/json",
+            accept="application/json",
+            body=json.dumps({
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 500,
+                "temperature": 0.3,
+            }),
+        )
+        body = json.loads(resp["body"].read())
+        raw_text = body["choices"][0]["message"]["content"].strip()
         result = _parse_json(raw_text)
         return {
             "reply": result.get("reply", raw_text),
