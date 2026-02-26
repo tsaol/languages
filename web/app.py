@@ -355,6 +355,70 @@ def vocab_edit():
     return jsonify({"ok": True})
 
 
+# ─── Stats Dashboard ─────────────────────────────────────────────────────────
+
+
+@app.route("/stats")
+@login_required
+def stats():
+    """Study progress dashboard."""
+    conn = get_connection()
+    try:
+        # Deck stats
+        deck_stats = get_deck_stats()
+        total_cards = sum(d['total'] for d in deck_stats)
+        total_mastered = sum(d['mastered'] for d in deck_stats)
+
+        # Quiz accuracy
+        quiz_total = conn.execute("SELECT COUNT(*) as c FROM quiz_results").fetchone()['c']
+        quiz_correct = conn.execute("SELECT COALESCE(SUM(is_correct), 0) as c FROM quiz_results").fetchone()['c']
+        quiz_pct = round(quiz_correct / quiz_total * 100) if quiz_total > 0 else 0
+
+        # Weekly activity (last 7 days)
+        from englearn.db.models import get_progress_history
+        all_progress = get_progress_history(days=30)
+        progress_map = {p['date']: p for p in all_progress}
+
+        weekly = []
+        for i in range(6, -1, -1):
+            d = (datetime.now() - timedelta(days=i)).strftime("%Y-%m-%d")
+            if d in progress_map:
+                weekly.append(progress_map[d])
+            else:
+                weekly.append({'date': d, 'cards_reviewed': 0, 'cards_correct': 0, 'quiz_taken': 0, 'quiz_correct': 0})
+
+        # Error categories
+        from englearn.db.models import get_category_stats
+        categories = get_category_stats()
+
+        # Streak calculation
+        streak = 0
+        today = datetime.now().strftime("%Y-%m-%d")
+        check_date = datetime.now()
+        while True:
+            d = check_date.strftime("%Y-%m-%d")
+            if d in progress_map:
+                p = progress_map[d]
+                if p['cards_reviewed'] > 0 or p['quiz_taken'] > 0:
+                    streak += 1
+                    check_date -= timedelta(days=1)
+                    continue
+            break
+
+    finally:
+        conn.close()
+
+    return render_template("stats.html",
+        total_cards=total_cards,
+        total_mastered=total_mastered,
+        accuracy={'total': quiz_total, 'correct': quiz_correct, 'pct': quiz_pct},
+        weekly=weekly,
+        progress=all_progress,
+        categories=categories,
+        streak=streak,
+    )
+
+
 # ─── Review Example Sentence (#4) ────────────────────────────────────────────
 
 
