@@ -496,10 +496,10 @@ Conversation so far:
 {conversation}
 [User]: {user_message}
 
-[Post-conversation instruction: Check the user's last message for grammar, spelling, and word choice errors. Respond in character, then list corrections.]
+[Post-conversation instruction: Check the user's last message for grammar, spelling, and word choice errors. Respond in character, then list corrections with clear explanations in Chinese so the learner understands WHY it's wrong.]
 
 Respond as JSON only:
-{{"reply": "<your in-character response>", "corrections": [<list of {{"wrong": "<exact wrong text from user>", "correct": "<corrected version>", "type": "grammar|spelling|word_choice"}}>, return empty list if no errors]}}"""
+{{"reply": "<your in-character response>", "corrections": [<list of {{"wrong": "<exact wrong text from user>", "correct": "<corrected version>", "type": "grammar|spelling|word_choice", "explanation": "<brief explanation in Chinese why this is wrong and the grammar rule, e.g. discuss是及物动词，后面直接跟宾语，不需要about>"}}>, return empty list if no errors]}}"""
 
     raw_text = ""
     try:
