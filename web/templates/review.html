@@ -306,11 +306,13 @@
         const u = normalize(userAnswer);
         const c = normalize(correctAnswer);
         if (u === c) return 'exact';
-        // Single word answers require exact spelling
-        if (!c.includes(' ')) return 'wrong';
-        // Multi-word phrases: allow partial/close match
-        if (c.includes(u) && u.length >= 3) return 'close';
-        if (u.includes(c)) return 'close';
+        // Similarity check (>= 95% required)
+        let matches = 0;
+        const len = Math.max(u.length, c.length);
+        for (let i = 0; i < Math.min(u.length, c.length); i++) {
+            if (u[i] === c[i]) matches++;
+        }
+        if (len > 0 && matches / len >= 0.95) return 'close';
         return 'wrong';
     }
 

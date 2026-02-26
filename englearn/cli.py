@@ -51,15 +51,8 @@ def _check_match(user_answer, correct_answer):
     c = _normalize(correct_answer)
     if u == c:
         return 'exact', 5
-    # Single word answers require exact spelling
-    if ' ' not in c:
-        return 'wrong', 1
-    # Multi-word phrases: allow partial/close match
-    if c in u or u in c:
-        if len(u) >= 3:
-            return 'close', 3
     sim = SequenceMatcher(None, u, c).ratio()
-    if sim >= 0.85:
+    if sim >= 0.95:
         return 'close', 3
     return 'wrong', 1
 
