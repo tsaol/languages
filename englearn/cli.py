@@ -535,11 +535,11 @@ def main():
     p_review = sub.add_parser('review', help='Flashcard review (typing-based)')
     p_review.add_argument('--deck', '-d', type=str, default=None,
                           help='Deck name (daily/express/vocab)')
-    p_review.add_argument('--count', '-n', type=int, default=20, help='Number of cards')
+    p_review.add_argument('--count', '-n', type=int, default=30, help='Number of cards')
 
     # talk
     p_talk = sub.add_parser('talk', help='Conversation practice (LLM scored)')
-    p_talk.add_argument('--count', '-n', type=int, default=10, help='Number of rounds')
+    p_talk.add_argument('--count', '-n', type=int, default=20, help='Number of rounds')
     p_talk.add_argument('--all', '-a', action='store_true', default=False, help='Include already-reviewed scenarios')
 
     # stats
