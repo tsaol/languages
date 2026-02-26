@@ -172,13 +172,15 @@ def _retry_review(client, cards):
 
 def cmd_talk(client, args):
     """Conversation practice via web API with LLM scoring."""
-    data = client.get_talk_scenarios(limit=args.count)
+    include_all = getattr(args, 'all', False)
+    data = client.get_talk_scenarios(limit=args.count, include_all=include_all)
     if not data:
         return
     scenarios = data['scenarios']
 
     if not scenarios:
-        print("\n  All done for today! No scenarios due.\n")
+        print("\n  All done for today! No scenarios due.")
+        print("  Use 'englearn talk --all' to practice anyway.\n")
         return
 
     total = len(scenarios)
@@ -541,6 +543,7 @@ def main():
     # talk
     p_talk = sub.add_parser('talk', help='Conversation practice (LLM scored)')
     p_talk.add_argument('--count', '-n', type=int, default=10, help='Number of rounds')
+    p_talk.add_argument('--all', '-a', action='store_true', default=False, help='Include already-reviewed scenarios')
 
     # stats
     sub.add_parser('stats', help='Show learning statistics')

@@ -61,8 +61,11 @@ class Client:
                                  json={"card_id": card_id, "rating": rating})
         return resp.json()
 
-    def get_talk_scenarios(self, limit=10):
-        resp = self.session.get(self._url("/api/talk/scenarios"), params={"limit": limit})
+    def get_talk_scenarios(self, limit=10, include_all=False):
+        params = {"limit": limit}
+        if include_all:
+            params["all"] = "1"
+        resp = self.session.get(self._url("/api/talk/scenarios"), params=params)
         if resp.status_code == 401:
             return None
         return resp.json()
