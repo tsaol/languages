@@ -385,12 +385,30 @@ def vocab_add():
     if not word or not chinese:
         return jsonify({"error": "Word and Chinese meaning are required"}), 400
 
+    # Generate a fill-in-the-blank sentence for precise testing
+    front = f'How do you say "{chinese}" in English?'
+    hint = f"Category: {category}" if category else ""
+    try:
+        from englearn.scoring.llm_scorer import _invoke_model
+        prompt = (
+            f'Create a single English sentence using the word "{word}" where the word is replaced by ___. '
+            f'Add the Chinese meaning ({chinese}) in parentheses after the blank. '
+            f'The sentence should make the answer unambiguous. '
+            f'Reply with ONLY the sentence, nothing else. '
+            f'Example: "The company decided to ___ the new policy. (实施)"'
+        )
+        sentence = _invoke_model(prompt, max_tokens=80).strip().strip('"')
+        if '___' in sentence:
+            front = sentence
+    except Exception:
+        pass
+
     from englearn.db.models import insert_flashcard
     card_id = insert_flashcard(
         deck='vocab',
-        front=f'How do you say "{chinese}" in English?',
+        front=front,
         back=word,
-        hint=f"Category: {category}" if category else "",
+        hint=hint,
     )
     return jsonify({"ok": True, "id": card_id, "word": word, "chinese": chinese})
 
@@ -426,11 +444,25 @@ def vocab_edit():
 
     conn = get_connection()
     try:
+        # Generate fill-in-the-blank for updated word
+        front = f'How do you say "{chinese}" in English?'
+        try:
+            from englearn.scoring.llm_scorer import _invoke_model
+            prompt = (
+                f'Create a single English sentence using the word "{word}" where the word is replaced by ___. '
+                f'Add the Chinese meaning ({chinese}) in parentheses after the blank. '
+                f'Reply with ONLY the sentence, nothing else.'
+            )
+            sentence = _invoke_model(prompt, max_tokens=80).strip().strip('"')
+            if '___' in sentence:
+                front = sentence
+        except Exception:
+            pass
         conn.execute(
             """UPDATE flashcards SET
                 front = ?, back = ?, hint = ?
                WHERE id = ? AND deck = 'vocab'""",
-            (f'How do you say "{chinese}" in English?', word,
+            (front, word,
              f"Category: {category}" if category else "", card_id)
         )
         conn.commit()

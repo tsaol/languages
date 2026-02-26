@@ -106,11 +106,23 @@ def sync_notion_to_flashcards():
         if not chinese:
             continue
 
-        # All vocab in one deck, mixed question types
-        # Type 1: Chinese → English (most useful)
+        # Generate fill-in-the-blank sentence for precise testing
+        front = f"How do you say \"{chinese}\" in English?"
+        try:
+            from englearn.scoring.llm_scorer import _invoke_model
+            prompt = (
+                f'Create a single English sentence using the word "{word}" where the word is replaced by ___. '
+                f'Add the Chinese meaning ({chinese}) in parentheses after the blank. '
+                f'Reply with ONLY the sentence, nothing else.'
+            )
+            sentence = _invoke_model(prompt, max_tokens=80).strip().strip('"')
+            if '___' in sentence:
+                front = sentence
+        except Exception:
+            pass
         models.insert_flashcard(
             deck='vocab',
-            front=f"How do you say \"{chinese}\" in English?",
+            front=front,
             back=word,
             hint=f"Category: {category}",
         )
