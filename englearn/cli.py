@@ -400,35 +400,83 @@ def cmd_vocab(client, args):
 
 
 def cmd_chat(client, args):
-    """Free-form chat with an AI role for conversation practice."""
+    """Roleplay chat with AI characters for conversation practice."""
     role_id = getattr(args, 'role', None)
+    scenario_id = None
 
-    if not role_id:
+    # Load roles from API
+    roles_data = client.get_chat_roles()
+    if not roles_data or 'roles' not in roles_data:
+        print("  Error: could not load roles. Is the server running?\n")
+        return
+    roles = roles_data['roles']
+
+    # Role selection
+    if not role_id or role_id not in roles:
         print()
         print("  Select a chat partner:")
         print("  ─────────────────────────────────────────────────────────")
-        print("    1. Sarah - American tech PM (casual, direct)")
-        print("    2. James - British English teacher (patient, challenging)")
+        role_list = list(roles.items())
+        for i, (rid, role) in enumerate(role_list, 1):
+            print(f"    {i}. {role['name']} - {role['title']}")
         print()
-        choice = input("  Choice (1/2): ").strip()
-        if choice == '1':
-            role_id = 'sarah'
-        elif choice == '2':
-            role_id = 'james'
-        else:
+        choice = input(f"  Choice (1-{len(role_list)}): ").strip()
+        try:
+            idx = int(choice) - 1
+            if 0 <= idx < len(role_list):
+                role_id = role_list[idx][0]
+            else:
+                print("  Invalid choice.\n")
+                return
+        except ValueError:
             print("  Invalid choice.\n")
             return
 
-    role_names = {'sarah': 'Sarah', 'james': 'James'}
-    role_name = role_names.get(role_id, role_id)
+    role = roles[role_id]
+    role_name = role['name']
+    scenarios = role.get('scenarios', [])
+
+    # Scenario selection
+    if scenarios:
+        print()
+        print(f"  Select a scenario for {role_name}:")
+        print("  ─────────────────────────────────────────────────────────")
+        print(f"    0. Free Talk")
+        for i, s in enumerate(scenarios, 1):
+            print(f"    {i}. {s['title']} - {s['desc']} [{s['difficulty']}]")
+        print()
+        choice = input(f"  Choice (0-{len(scenarios)}): ").strip()
+        try:
+            idx = int(choice)
+            if idx == 0:
+                scenario_id = None
+            elif 1 <= idx <= len(scenarios):
+                scenario_id = scenarios[idx - 1]['id']
+            else:
+                print("  Invalid choice.\n")
+                return
+        except ValueError:
+            print("  Invalid choice.\n")
+            return
+
+    scenario_label = "Free Talk"
+    if scenario_id:
+        for s in scenarios:
+            if s['id'] == scenario_id:
+                scenario_label = s['title']
+                break
 
     print()
     print(f"  ╔═══════════════════════════════════════════════════════╗")
-    print(f"  ║          Chat with {role_name:<33s}║")
+    print(f"  ║  Chat with {role_name} - {scenario_label:<37s}║"[:58] + "║")
     print(f"  ╠═══════════════════════════════════════════════════════╣")
     print(f"  ║  Type in English. 'q' to quit.                      ║")
     print(f"  ╚═══════════════════════════════════════════════════════╝")
-    print()
+
+    # Start session and show first message
+    start_result = client.start_chat_session(role_id, scenario_id)
+    if start_result and start_result.get('first_message'):
+        print(f"\n  {role_name}: {start_result['first_message']}\n")
 
     try:
         while True:
@@ -439,7 +487,7 @@ def cmd_chat(client, args):
                 break
 
             print("  ...", end="", flush=True)
-            result = client.send_chat_message(role_id, user_input)
+            result = client.send_chat_message(role_id, user_input, scenario_id)
 
             if not result:
                 print("\r  Error: not logged in or server error.")

@@ -442,14 +442,15 @@ def cache_flashcard_example(card_id: int, sentence: str, collocation: str):
 # ─── Chat Messages ───────────────────────────────────────────────────────────
 
 
-def insert_chat_message(role_id: str, sender: str, message: str, corrections: str = None) -> int:
+def insert_chat_message(role_id: str, sender: str, message: str,
+                        corrections: str = None, scenario_id: str = None) -> int:
     """Insert a chat message and return its ID."""
     conn = get_connection()
     try:
         cur = conn.execute(
-            """INSERT INTO chat_messages (role_id, sender, message, corrections)
-               VALUES (?, ?, ?, ?)""",
-            (role_id, sender, message, corrections)
+            """INSERT INTO chat_messages (role_id, sender, message, corrections, scenario_id)
+               VALUES (?, ?, ?, ?, ?)""",
+            (role_id, sender, message, corrections, scenario_id)
         )
         conn.commit()
         return cur.lastrowid
@@ -457,25 +458,42 @@ def insert_chat_message(role_id: str, sender: str, message: str, corrections: st
         conn.close()
 
 
-def get_chat_history(role_id: str, limit: int = 20) -> List[dict]:
-    """Get chat history for a role, oldest first for display."""
+def get_chat_history(role_id: str, limit: int = 20,
+                     scenario_id: str = None) -> List[dict]:
+    """Get chat history for a role + scenario, oldest first for display.
+
+    If scenario_id is None, returns free-talk messages (where scenario_id IS NULL).
+    If scenario_id is given, returns messages for that specific scenario.
+    """
     conn = get_connection()
     try:
-        rows = conn.execute(
-            """SELECT * FROM chat_messages WHERE role_id = ?
-               ORDER BY id DESC LIMIT ?""",
-            (role_id, limit)
-        ).fetchall()
+        if scenario_id:
+            rows = conn.execute(
+                """SELECT * FROM chat_messages WHERE role_id = ? AND scenario_id = ?
+                   ORDER BY id DESC LIMIT ?""",
+                (role_id, scenario_id, limit)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                """SELECT * FROM chat_messages WHERE role_id = ? AND scenario_id IS NULL
+                   ORDER BY id DESC LIMIT ?""",
+                (role_id, limit)
+            ).fetchall()
         return [dict(r) for r in reversed(rows)]
     finally:
         conn.close()
 
 
-def clear_chat_history(role_id: str) -> None:
-    """Clear all chat messages for a role."""
+def clear_chat_history(role_id: str, scenario_id: str = None) -> None:
+    """Clear chat messages for a role + scenario."""
     conn = get_connection()
     try:
-        conn.execute("DELETE FROM chat_messages WHERE role_id = ?", (role_id,))
+        if scenario_id:
+            conn.execute(
+                "DELETE FROM chat_messages WHERE role_id = ? AND scenario_id = ?",
+                (role_id, scenario_id))
+        else:
+            conn.execute("DELETE FROM chat_messages WHERE role_id = ?", (role_id,))
         conn.commit()
     finally:
         conn.close()

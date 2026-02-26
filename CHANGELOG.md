@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.4.0 (2026-02-26)
+
+- Chat roleplay system redesigned (inspired by SillyTavern character cards)
+- Rich character cards: detailed backstory, personality traits, example dialogue
+- 4 roles: Sarah (American PM), James (British teacher), Emily (Aussie account manager), David (Silicon Valley tech lead)
+- Scenario system: each role has 3-4 goal-oriented scenarios + Free Talk
+- AI sends first_message to set conversation tone (SillyTavern-style greeting)
+- Example dialogue in prompt teaches AI how to correct errors in-character
+- Post-history instruction ensures grammar correction every turn
+- Scenario context and target vocabulary injected into prompts
+- Web UI: 3-step flow (role selection -> scenario selection -> chat)
+- CLI: interactive role + scenario selection menu
+- Chat history separated per role + scenario combination
+- New API endpoints: /api/chat/roles, /api/chat/start
+
 ## 0.3.5 (2026-02-26)
 
 - Chat memory: Mem0 integration for long-term semantic memory in Chat

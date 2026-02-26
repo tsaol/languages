@@ -97,18 +97,34 @@ class Client:
         })
         return resp.json()
 
-    def send_chat_message(self, role_id, message):
-        resp = self.session.post(self._url("/api/chat/send"), json={
-            "role_id": role_id, "message": message,
+    def get_chat_roles(self):
+        resp = self.session.get(self._url("/api/chat/roles"))
+        if resp.status_code == 401:
+            return None
+        return resp.json()
+
+    def start_chat_session(self, role_id, scenario_id=None):
+        resp = self.session.post(self._url("/api/chat/start"), json={
+            "role_id": role_id, "scenario_id": scenario_id or "",
         })
         if resp.status_code == 401:
             return None
         return resp.json()
 
-    def get_chat_history(self, role_id, limit=20):
-        resp = self.session.get(self._url("/api/chat/history"), params={
-            "role_id": role_id, "limit": limit,
+    def send_chat_message(self, role_id, message, scenario_id=None):
+        resp = self.session.post(self._url("/api/chat/send"), json={
+            "role_id": role_id, "message": message,
+            "scenario_id": scenario_id or "",
         })
+        if resp.status_code == 401:
+            return None
+        return resp.json()
+
+    def get_chat_history(self, role_id, limit=20, scenario_id=None):
+        params = {"role_id": role_id, "limit": limit}
+        if scenario_id:
+            params["scenario_id"] = scenario_id
+        resp = self.session.get(self._url("/api/chat/history"), params=params)
         if resp.status_code == 401:
             return None
         return resp.json()
