@@ -337,10 +337,16 @@
         line-height: 1.5;
     }
 
-    .msg-corrections .correction-item { margin-bottom: 2px; }
+    .msg-corrections .correction-item { margin-bottom: 4px; }
     .msg-corrections .correction-item .correct-text {
         color: var(--accent);
         font-weight: 500;
+    }
+    .msg-corrections .correction-item .explanation {
+        display: block;
+        color: var(--text-dim);
+        font-size: 0.68rem;
+        margin-top: 1px;
     }
 
     /* Typing Indicator */
@@ -818,7 +824,7 @@ function appendUserMessage(text, corrections, msgId) {
         corrections.forEach(c => {
             const item = document.createElement('div');
             item.className = 'correction-item';
-            item.innerHTML = '"' + esc(c.wrong || '') + '" &rarr; <span class="correct-text">' + esc(c.correct || '') + '</span>';
+            item.innerHTML = '"' + esc(c.wrong || '') + '" &rarr; <span class="correct-text">' + esc(c.correct || '') + '</span>' + (c.explanation ? '<span class="explanation">' + esc(c.explanation) + '</span>' : '');
             corrDiv.appendChild(item);
         });
         row.appendChild(corrDiv);
@@ -911,7 +917,7 @@ async function sendMessage() {
             data.corrections.forEach(c => {
                 const item = document.createElement('div');
                 item.className = 'correction-item';
-                item.innerHTML = '"' + esc(c.wrong || '') + '" &rarr; <span class="correct-text">' + esc(c.correct || '') + '</span>';
+                item.innerHTML = '"' + esc(c.wrong || '') + '" &rarr; <span class="correct-text">' + esc(c.correct || '') + '</span>' + (c.explanation ? '<span class="explanation">' + esc(c.explanation) + '</span>' : '');
                 corrDiv.appendChild(item);
             });
             lastUserRow.appendChild(corrDiv);
