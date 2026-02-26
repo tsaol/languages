@@ -284,16 +284,23 @@ def seed_talk_scenarios(templates: list):
 
 
 def get_due_talk_scenarios(limit: int = 10) -> List[dict]:
-    """Get talk scenarios due for review (SM-2 based)."""
+    """Get talk scenarios due for review (SM-2 based).
+
+    Excludes scenarios already reviewed today so multiple sessions
+    in one day give fresh scenarios each time.
+    """
     conn = get_connection()
     try:
         today = datetime.now().strftime("%Y-%m-%d")
+
+        # Due scenarios NOT reviewed today
         rows = conn.execute(
             """SELECT * FROM talk_scenarios
                WHERE next_review <= ?
+                 AND (last_review IS NULL OR last_review < ?)
                ORDER BY ease_factor ASC, next_review ASC
                LIMIT ?""",
-            (today, limit)
+            (today, today, limit)
         ).fetchall()
         result = []
         for r in rows:
@@ -301,21 +308,24 @@ def get_due_talk_scenarios(limit: int = 10) -> List[dict]:
             d['good_responses'] = json.loads(d['good_responses'])
             result.append(d)
 
-        # Fallback: if not enough due, add random ones
+        # Fallback: not-yet-reviewed-today scenarios (any next_review)
         if len(result) < limit:
             existing_ids = [r['id'] for r in result]
             placeholders = ','.join('?' * len(existing_ids)) if existing_ids else '0'
             extra = conn.execute(
                 f"""SELECT * FROM talk_scenarios
                     WHERE id NOT IN ({placeholders})
-                    ORDER BY RANDOM() LIMIT ?""",
-                existing_ids + [limit - len(result)]
+                      AND (last_review IS NULL OR last_review < ?)
+                    ORDER BY next_review ASC, RANDOM()
+                    LIMIT ?""",
+                existing_ids + [today, limit - len(result)]
             ).fetchall()
             for r in extra:
                 d = dict(r)
                 d['good_responses'] = json.loads(d['good_responses'])
                 result.append(d)
 
+        # If all reviewed today, return empty — done for today
         return result
     finally:
         conn.close()
