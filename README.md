@@ -12,7 +12,8 @@ pip install git+https://github.com/tsaol/languages.git
 
 ```bash
 englearn login                # login to web server (first time only)
-englearn                      # show stats (default)
+englearn config               # show/set server URL
+englearn                      # show welcome screen with quick stats
 englearn review               # review due flashcards (type answers)
 englearn review -d vocab      # review vocab deck only
 englearn talk                 # conversation practice (LLM scored)
