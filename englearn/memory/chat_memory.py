@@ -23,7 +23,7 @@ MEM0_CONFIG = {
     "embedder": {
         "provider": "aws_bedrock",
         "config": {
-            "model": "amazon.titan-embed-text-v2:0",
+            "model": "cohere.embed-multilingual-v3",
             "aws_region": "us-east-1",
         }
     },
