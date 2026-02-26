@@ -135,7 +135,8 @@ CHAT_ROLES = {
 }
 
 
-def chat_reply(role_id: str, user_message: str, history: list) -> dict:
+def chat_reply(role_id: str, user_message: str, history: list,
+               memories: list = None) -> dict:
     """Generate a chat reply from a role character with grammar corrections."""
     role = CHAT_ROLES.get(role_id)
     if not role:
@@ -152,11 +153,19 @@ def chat_reply(role_id: str, user_message: str, history: list) -> dict:
         else:
             conversation += f"[{role_name}]: {msg['message']}\n"
 
+    # Build memory context if available
+    memory_context = ""
+    if memories:
+        memory_context = "\nThings you remember about this user from past conversations:\n"
+        for m in memories:
+            memory_context += f"- {m}\n"
+        memory_context += "\nUse these memories naturally in conversation when relevant. Don't list them.\n"
+
     prompt = f"""{role['desc']}
 
 You are having a conversation with a Chinese English learner. Stay in character.
 Also check the user's English for grammar, spelling, and word choice errors.
-
+{memory_context}
 Conversation so far:
 {conversation}
 [User]: {user_message}
