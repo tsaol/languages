@@ -670,7 +670,7 @@ def main():
     # chat
     p_chat = sub.add_parser('chat', help='Free-form chat with AI roles')
     p_chat.add_argument('--role', '-r', type=str, default=None,
-                        choices=['sarah', 'james'], help='Chat partner (sarah/james)')
+                        help='Chat partner (e.g. sarah, james, emily, david, taotao)')
 
     # stats
     sub.add_parser('stats', help='Show learning statistics')

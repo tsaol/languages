@@ -493,7 +493,9 @@ def clear_chat_history(role_id: str, scenario_id: str = None) -> None:
                 "DELETE FROM chat_messages WHERE role_id = ? AND scenario_id = ?",
                 (role_id, scenario_id))
         else:
-            conn.execute("DELETE FROM chat_messages WHERE role_id = ?", (role_id,))
+            conn.execute(
+                "DELETE FROM chat_messages WHERE role_id = ? AND scenario_id IS NULL",
+                (role_id,))
         conn.commit()
     finally:
         conn.close()

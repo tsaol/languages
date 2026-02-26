@@ -4,7 +4,7 @@
 
 - Chat roleplay system redesigned (inspired by SillyTavern character cards)
 - Rich character cards: detailed backstory, personality traits, example dialogue
-- 4 roles: Sarah (American PM), James (British teacher), Emily (Aussie account manager), David (Silicon Valley tech lead)
+- 5 roles: Sarah (American PM), James (British teacher), Emily (Aussie account manager), David (Silicon Valley tech lead), Taotao (shy executive assistant)
 - Scenario system: each role has 3-4 goal-oriented scenarios + Free Talk
 - AI sends first_message to set conversation tone (SillyTavern-style greeting)
 - Example dialogue in prompt teaches AI how to correct errors in-character
