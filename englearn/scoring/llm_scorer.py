@@ -482,26 +482,72 @@ def chat_reply(role_id: str, user_message: str, history: list,
     appearance = role.get("appearance", "")
     appearance_line = f"\nAppearance: {appearance}" if appearance else ""
 
-    # Prompt construction (SillyTavern-inspired layered approach)
+    # ── Step 1: Role reply (no correction duty) ──
     prompt = f"""You are {role_name}. {role['description']}
 {appearance_line}
 Personality: {role['personality']}
 
-You are having a conversation with a Chinese English learner. Stay in character at all times. Keep responses under 80 words.
+You are having a conversation with a Chinese English learner. Stay in character at all times. Keep responses under 80 words. Do NOT correct their English — just respond naturally in character.
 {scenario_context}{memory_context}
-Example of how you talk and correct errors:
+Example of how you talk:
 {role['example_dialogue']}
 
 Conversation so far:
 {conversation}
 [User]: {user_message}
 
-[Post-conversation instruction: Check the user's last message for grammar, spelling, and word choice errors. For each error, provide a rich correction with: the wrong text, corrected version, a more natural/idiomatic expression, detailed Chinese explanation of the grammar rule, the key sentence pattern, and the tense used. This helps the Chinese learner understand deeply.]
+Respond in character. Plain text only, no JSON."""
 
-Respond as JSON only:
-{{"reply": "<your in-character response>", "corrections": [<list of {{"wrong": "<exact wrong text from user>", "correct": "<corrected version>", "idiomatic": "<more natural/native way to express it>", "type": "grammar|spelling|word_choice", "explanation": "<detailed explanation in Chinese: why it is wrong, the grammar rule>", "pattern": "<key sentence pattern, e.g. need to + verb>", "tense": "<tense used, e.g. past simple, present perfect>"}}>, return empty list if no errors]}}"""
+    reply = ""
+    try:
+        client = _get_client()
+        resp = client.invoke_model(
+            modelId=BEDROCK_CHAT_MODEL,
+            contentType="application/json",
+            accept="application/json",
+            body=json.dumps({
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 300,
+                "temperature": 0.3,
+            }),
+        )
+        body = json.loads(resp["body"].read())
+        reply = body["choices"][0]["message"]["content"].strip()
+    except Exception:
+        reply = "Sorry, I couldn't respond."
 
-    raw_text = ""
+    # ── Step 2: Teacher agent (independent correction) ──
+    corrections = _teacher_correct(user_message)
+
+    return {"reply": reply, "corrections": corrections}
+
+
+def _teacher_correct(user_message: str) -> list:
+    """Independent teacher agent that only checks English errors.
+
+    Runs separately from the role conversation. Its output is NOT
+    part of the chat history — it only tells the user how to express
+    things properly.
+    """
+    prompt = f"""You are an English teacher helping a Chinese learner. Check the following sentence for grammar, spelling, and word choice errors.
+
+Student's sentence: "{user_message}"
+
+For each error found, provide:
+1. wrong: the exact wrong text
+2. correct: corrected version
+3. idiomatic: a more natural/native way to express it
+4. type: grammar, spelling, or word_choice
+5. explanation: detailed explanation in Chinese — why it is wrong, the grammar rule
+6. pattern: key sentence pattern (e.g. "need to + verb", "Subject + past tense verb")
+7. tense: what tense is used or should be used
+
+If the sentence is entirely in Chinese or contains no English, return empty list.
+If the sentence is correct, return empty list.
+
+Respond in JSON only:
+{{"corrections": [<list of {{"wrong": "...", "correct": "...", "idiomatic": "...", "type": "...", "explanation": "...", "pattern": "...", "tense": "..."}}>, return empty list if no errors]}}"""
+
     try:
         client = _get_client()
         resp = client.invoke_model(
@@ -511,18 +557,15 @@ Respond as JSON only:
             body=json.dumps({
                 "messages": [{"role": "user", "content": prompt}],
                 "max_tokens": 500,
-                "temperature": 0.3,
+                "temperature": 0,
             }),
         )
         body = json.loads(resp["body"].read())
         raw_text = body["choices"][0]["message"]["content"].strip()
         result = _parse_json(raw_text)
-        return {
-            "reply": result.get("reply", raw_text),
-            "corrections": result.get("corrections", []),
-        }
+        return result.get("corrections", [])
     except Exception:
-        return {"reply": raw_text or "Sorry, I couldn't respond.", "corrections": []}
+        return []
 
 
 def generate_scenario(original: str, corrected: str, pattern: str) -> dict:
