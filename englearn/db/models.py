@@ -283,11 +283,12 @@ def seed_talk_scenarios(templates: list):
         conn.close()
 
 
-def get_due_talk_scenarios(limit: int = 10) -> List[dict]:
+def get_due_talk_scenarios(limit: int = 10, include_reviewed: bool = False) -> List[dict]:
     """Get talk scenarios due for review (SM-2 based).
 
     Excludes scenarios already reviewed today so multiple sessions
     in one day give fresh scenarios each time.
+    If include_reviewed=True, returns random scenarios even if all done today.
     """
     conn = get_connection()
     try:
@@ -325,7 +326,19 @@ def get_due_talk_scenarios(limit: int = 10) -> List[dict]:
                 d['good_responses'] = json.loads(d['good_responses'])
                 result.append(d)
 
-        # If all reviewed today, return empty — done for today
+        # If all reviewed today and --all flag, return random scenarios
+        if not result and include_reviewed:
+            rows = conn.execute(
+                """SELECT * FROM talk_scenarios
+                   ORDER BY RANDOM()
+                   LIMIT ?""",
+                (limit,)
+            ).fetchall()
+            for r in rows:
+                d = dict(r)
+                d['good_responses'] = json.loads(d['good_responses'])
+                result.append(d)
+
         return result
     finally:
         conn.close()

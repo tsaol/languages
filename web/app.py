@@ -648,7 +648,8 @@ def api_talk_scenarios():
     seed_talk_scenarios(SCENARIO_TEMPLATES)
     _generate_dynamic_scenarios()
     limit = int(request.args.get("limit", 10))
-    scenarios = get_due_talk_scenarios(limit=limit)
+    include_all = request.args.get("all", "0") == "1"
+    scenarios = get_due_talk_scenarios(limit=limit, include_reviewed=include_all)
     random.shuffle(scenarios)
     return jsonify({"scenarios": scenarios, "total": len(scenarios)})
 
