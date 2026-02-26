@@ -324,7 +324,7 @@
         const card = cards[idx];
         const match = checkMatch(input, card.back);
         const isCorrect = match === 'exact' || match === 'close';
-        const rating = match === 'exact' ? 5 : match === 'close' ? 3 : 1;
+        const rating = match === 'exact' ? 3 : match === 'close' ? 2 : 1;
 
         sessionTotal++;
         if (isCorrect) {
