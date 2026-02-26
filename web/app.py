@@ -615,6 +615,7 @@ def review_example():
 
 
 @app.route("/api/sync-log", methods=["POST"])
+@login_required
 def api_sync_log():
     """Receive incremental english.log lines and process into flashcards."""
     data = request.get_json()
