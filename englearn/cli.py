@@ -444,8 +444,11 @@ def cmd_login(client, args):
 def _show_welcome(client):
     """Show welcome screen with features and quick stats."""
     print()
+    from englearn import __version__
+    title = f"EngLearn v{__version__}"
+    pad = (53 - len(title)) // 2
     print("  ╔═══════════════════════════════════════════════════════╗")
-    print("  ║                  EngLearn v0.3.2                     ║")
+    print(f"  ║{' ' * pad}{title}{' ' * (53 - pad - len(title))}║")
     print("  ╚═══════════════════════════════════════════════════════╝")
     print()
     print("  Commands:")
