@@ -496,10 +496,10 @@ Conversation so far:
 {conversation}
 [User]: {user_message}
 
-[Post-conversation instruction: Check the user's last message for grammar, spelling, and word choice errors. Respond in character, then list corrections with clear explanations in Chinese so the learner understands WHY it's wrong.]
+[Post-conversation instruction: Check the user's last message for grammar, spelling, and word choice errors. For each error, provide a rich correction with: the wrong text, corrected version, a more natural/idiomatic expression, detailed Chinese explanation of the grammar rule, the key sentence pattern, and the tense used. This helps the Chinese learner understand deeply.]
 
 Respond as JSON only:
-{{"reply": "<your in-character response>", "corrections": [<list of {{"wrong": "<exact wrong text from user>", "correct": "<corrected version>", "type": "grammar|spelling|word_choice", "explanation": "<brief explanation in Chinese why this is wrong and the grammar rule, e.g. discuss是及物动词，后面直接跟宾语，不需要about>"}}>, return empty list if no errors]}}"""
+{{"reply": "<your in-character response>", "corrections": [<list of {{"wrong": "<exact wrong text from user>", "correct": "<corrected version>", "idiomatic": "<more natural/native way to express it>", "type": "grammar|spelling|word_choice", "explanation": "<detailed explanation in Chinese: why it is wrong, the grammar rule>", "pattern": "<key sentence pattern, e.g. need to + verb>", "tense": "<tense used, e.g. past simple, present perfect>"}}>, return empty list if no errors]}}"""
 
     raw_text = ""
     try:
