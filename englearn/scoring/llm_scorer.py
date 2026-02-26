@@ -67,8 +67,10 @@ Evaluate on 6 dimensions (each 0.0-1.0):
 5. pattern: Did the user apply the target pattern?
 6. vocabulary: Word choice precision
 
+Also identify specific errors in the student's sentence. For each error, provide the exact wrong word/phrase, the correction, and the error type (grammar, spelling, or word_choice).
+
 Respond in this exact JSON format only, no other text:
-{{"score": <weighted average 0.0-1.0>, "is_correct": <true if score >= 0.7>, "dimensions": {{"grammar": {{"score": <0-1>, "note": "<brief>"}}, "meaning": {{"score": <0-1>, "note": "<brief>"}}, "tone": {{"score": <0-1>, "note": "<brief>"}}, "fluency": {{"score": <0-1>, "note": "<brief>"}}, "pattern": {{"score": <0-1>, "note": "<brief>"}}, "vocabulary": {{"score": <0-1>, "note": "<brief>"}}}}, "feedback": "<1 sentence overall feedback>", "better_expression": "<more natural way to say it>", "common_mistake": "<typical Chinese->English error relevant here>"}}"""
+{{"score": <weighted average 0.0-1.0>, "is_correct": <true if score >= 0.7>, "dimensions": {{"grammar": {{"score": <0-1>, "note": "<brief>"}}, "meaning": {{"score": <0-1>, "note": "<brief>"}}, "tone": {{"score": <0-1>, "note": "<brief>"}}, "fluency": {{"score": <0-1>, "note": "<brief>"}}, "pattern": {{"score": <0-1>, "note": "<brief>"}}, "vocabulary": {{"score": <0-1>, "note": "<brief>"}}}}, "feedback": "<1 sentence overall feedback>", "better_expression": "<more natural way to say it>", "common_mistake": "<typical Chinese->English error relevant here>", "corrections": [<list of {{"wrong": "<exact wrong word/phrase from student>", "correct": "<corrected version>", "type": "<grammar|spelling|word_choice>"}}>, return empty list if no errors]}}"""
 
     try:
         text = _invoke_model(prompt)
@@ -81,6 +83,7 @@ Respond in this exact JSON format only, no other text:
             "feedback": result.get("feedback", ""),
             "better_expression": result.get("better_expression", ""),
             "common_mistake": result.get("common_mistake", ""),
+            "corrections": result.get("corrections", []),
         }
     except Exception as e:
         # Fallback to simple matching
@@ -101,6 +104,7 @@ Respond in this exact JSON format only, no other text:
             "feedback": f"(Fallback: {str(e)[:60]})",
             "better_expression": best_match,
             "common_mistake": "",
+            "corrections": [],
         }
 
 

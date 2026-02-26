@@ -318,6 +318,7 @@ def talk_answer():
         "feedback": result.get("feedback", ""),
         "dimensions": result.get("dimensions", {}),
         "common_mistake": result.get("common_mistake", ""),
+        "corrections": result.get("corrections", []),
     })
 
 
