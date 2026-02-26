@@ -5,103 +5,85 @@
 
 {% block head %}
 <style>
-    /* Flashcard flip */
-    .flashcard-container {
-        perspective: 1000px;
-        width: 100%;
-        min-height: 280px;
-        margin: 16px 0;
-        cursor: pointer;
-    }
-
-    .flashcard {
-        position: relative;
-        width: 100%;
-        min-height: 280px;
-        transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-        transform-style: preserve-3d;
-    }
-
-    .flashcard.flipped {
-        transform: rotateY(180deg);
-    }
-
-    .flashcard-face {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        min-height: 280px;
-        backface-visibility: hidden;
-        -webkit-backface-visibility: hidden;
+    .question-card {
+        background: linear-gradient(145deg, var(--surface) 0%, var(--surface2) 100%);
+        border: 1px solid var(--border);
         border-radius: var(--radius);
         padding: 28px 24px;
+        text-align: center;
+        margin-bottom: 16px;
+        min-height: 120px;
         display: flex;
         flex-direction: column;
         justify-content: center;
-        align-items: center;
-        text-align: center;
-        border: 1px solid var(--border);
     }
 
-    .flashcard-front {
-        background: linear-gradient(145deg, var(--surface) 0%, var(--surface2) 100%);
-    }
-
-    .flashcard-back {
-        background: linear-gradient(145deg, #1a2720 0%, #1d2a23 100%);
-        border-color: var(--accent);
-        border-width: 1px;
-        transform: rotateY(180deg);
-    }
-
-    .flashcard-front .face-label {
-        color: var(--text-dim);
-    }
-
-    .flashcard-back .face-label {
-        color: var(--accent);
-    }
-
-    .face-label {
+    .question-label {
         font-size: 0.65rem;
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.1em;
-        margin-bottom: 16px;
+        color: var(--text-dim);
+        margin-bottom: 12px;
     }
 
-    .face-content {
+    .question-text {
         font-size: 1.1rem;
         line-height: 1.6;
         font-weight: 500;
-        word-break: break-word;
     }
 
-    .face-hint {
-        margin-top: 16px;
+    .question-hint {
+        margin-top: 12px;
         font-size: 0.78rem;
         color: var(--text-dim);
         font-style: italic;
-        max-width: 100%;
-        word-break: break-word;
     }
 
-    .tap-hint {
+    /* Result card */
+    .result-card {
+        border-radius: var(--radius);
+        padding: 20px;
+        margin-bottom: 16px;
+        border: 1px solid var(--border);
+    }
+
+    .result-card.correct {
+        background: linear-gradient(145deg, #1a2720 0%, #1d2a23 100%);
+        border-color: var(--accent);
+    }
+
+    .result-card.wrong {
+        background: linear-gradient(145deg, #2a1a1a 0%, #2d1d1d 100%);
+        border-color: var(--red);
+    }
+
+    .result-row {
+        display: flex;
+        gap: 8px;
+        align-items: baseline;
+        margin-bottom: 8px;
+        font-size: 0.9rem;
+    }
+
+    .result-row:last-child { margin-bottom: 0; }
+
+    .result-label {
         font-size: 0.7rem;
         color: var(--text-dim);
-        margin-top: 14px;
-        opacity: 0.6;
+        width: 60px;
+        flex-shrink: 0;
+        text-transform: uppercase;
+        font-weight: 600;
     }
 
-    /* Example sentence area (#4) */
+    /* Example sentence area */
     .example-area {
-        margin-top: 14px;
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid var(--border);
         font-size: 0.8rem;
         color: var(--text-dim);
-        text-align: left;
-        width: 100%;
-        max-width: 100%;
     }
     .example-sentence {
         font-style: italic;
@@ -112,91 +94,6 @@
         font-size: 0.75rem;
         color: var(--text-dim);
     }
-    .example-loading {
-        font-size: 0.75rem;
-        color: var(--text-dim);
-        opacity: 0.6;
-    }
-
-    /* Rating buttons */
-    .rating-bar {
-        display: flex;
-        gap: 10px;
-        padding: 0;
-        width: 100%;
-    }
-
-    .rating-btn {
-        flex: 1;
-        padding: 14px 8px;
-        border-radius: var(--radius-sm);
-        border: 1px solid var(--border);
-        background: var(--surface);
-        color: var(--text);
-        font-size: 0.8rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.15s;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 4px;
-    }
-
-    .rating-btn:active {
-        transform: scale(0.95);
-    }
-
-    .rating-btn .rating-icon {
-        font-size: 1.3rem;
-    }
-
-    .rating-btn.r-fail {
-        border-color: rgba(248, 113, 113, 0.3);
-    }
-    .rating-btn.r-fail:active, .rating-btn.r-fail.pressed {
-        background: var(--red-dim);
-        border-color: var(--red);
-    }
-
-    .rating-btn.r-hard {
-        border-color: rgba(251, 191, 36, 0.3);
-    }
-    .rating-btn.r-hard:active, .rating-btn.r-hard.pressed {
-        background: var(--yellow-dim);
-        border-color: var(--yellow);
-    }
-
-    .rating-btn.r-easy {
-        border-color: rgba(74, 222, 128, 0.3);
-    }
-    .rating-btn.r-easy:active, .rating-btn.r-easy.pressed {
-        background: var(--accent-dim);
-        border-color: var(--accent);
-    }
-
-    /* Empty state */
-    .empty-state {
-        text-align: center;
-        padding: 60px 20px;
-    }
-
-    .empty-state .emoji {
-        font-size: 3.5rem;
-        margin-bottom: 16px;
-    }
-
-    /* Complete state */
-    .complete-state {
-        text-align: center;
-        padding: 40px 20px;
-    }
-
-    .complete-state .emoji {
-        font-size: 3.5rem;
-        margin-bottom: 16px;
-        animation: pulse 2s infinite;
-    }
 
     /* Deck selector */
     .deck-selector {
@@ -206,9 +103,7 @@
         padding: 2px 0;
         -webkit-overflow-scrolling: touch;
     }
-
     .deck-selector::-webkit-scrollbar { display: none; }
-
     .deck-chip {
         padding: 7px 16px;
         border-radius: 20px;
@@ -221,16 +116,17 @@
         color: var(--text-dim);
         transition: all 0.15s;
     }
-
     .deck-chip.active {
         background: var(--accent-dim);
         color: var(--accent);
         border-color: var(--accent);
     }
+    .deck-chip:active { transform: scale(0.95); }
 
-    .deck-chip:active {
-        transform: scale(0.95);
-    }
+    .empty-state { text-align: center; padding: 60px 20px; }
+    .empty-state .emoji { font-size: 3.5rem; margin-bottom: 16px; }
+    .complete-state { text-align: center; padding: 40px 20px; }
+    .complete-state .emoji { font-size: 3.5rem; margin-bottom: 16px; animation: pulse 2s infinite; }
 </style>
 {% endblock %}
 
@@ -258,7 +154,6 @@
 
 <div class="container">
     {% if not cards %}
-    <!-- Empty state -->
     <div class="empty-state fade-in">
         <div class="emoji">🎉</div>
         <div class="text-lg font-bold" style="margin-bottom: 8px;">All caught up!</div>
@@ -273,51 +168,50 @@
         <div class="progress-fill" id="reviewProgressFill" style="width: 0%"></div>
     </div>
 
-    <!-- Flashcard -->
     <div id="cardArea">
-        <div class="flashcard-container" id="flashcardContainer" onclick="flipCard()">
-            <div class="flashcard" id="flashcard">
-                <div class="flashcard-face flashcard-front">
-                    <div class="face-label">Question</div>
-                    <div class="face-content" id="cardFront"></div>
-                    <div class="face-hint" id="cardHint"></div>
-                    <div class="tap-hint">Tap to reveal answer</div>
-                </div>
-                <div class="flashcard-face flashcard-back">
-                    <div class="face-label">Answer</div>
-                    <div class="face-content" id="cardBack"></div>
-                    <!-- Example sentence area (#4) -->
-                    <div class="example-area" id="exampleArea" style="display:none;">
-                        <div class="example-sentence" id="exampleSentence"></div>
-                        <div class="example-collocation" id="exampleCollocation"></div>
-                    </div>
-                </div>
-            </div>
+        <!-- Question -->
+        <div class="question-card" id="questionCard">
+            <div class="question-label">Question</div>
+            <div class="question-text" id="cardFront"></div>
+            <div class="question-hint" id="cardHint" style="display:none;"></div>
         </div>
 
-        <!-- Rating buttons (hidden until flipped) -->
-        <div class="rating-bar" id="ratingBar" style="opacity: 0; pointer-events: none; transition: opacity 0.3s;">
-            <button class="rating-btn r-fail" onclick="submitRating(1)">
-                <span class="rating-icon">❌</span>
-                <span>Don't know</span>
-            </button>
-            <button class="rating-btn r-hard" onclick="submitRating(2)">
-                <span class="rating-icon">🤔</span>
-                <span>Hesitated</span>
-            </button>
-            <button class="rating-btn r-easy" onclick="submitRating(3)">
-                <span class="rating-icon">✅</span>
-                <span>Easy</span>
-            </button>
+        <!-- Input area -->
+        <div id="inputArea">
+            <input type="text" id="answerInput" placeholder="Type your answer..."
+                style="width:100%; padding:14px; background:var(--surface2); border:1px solid var(--border); border-radius:10px; color:var(--text); font-size:1rem; outline:none; margin-bottom:8px;"
+                autocomplete="off" autocapitalize="off" spellcheck="true">
+            <button id="submitBtn" onclick="checkAnswer()" class="btn btn-accent w-full">Check</button>
+            <button onclick="skipCard()" class="btn btn-surface w-full" style="font-size:0.85rem; margin-top:6px;">Skip</button>
+        </div>
+
+        <!-- Result (hidden) -->
+        <div id="resultArea" style="display:none;">
+            <div class="result-card" id="resultCard">
+                <div id="resultIcon" style="font-size:2rem; text-align:center; margin-bottom:8px;"></div>
+                <div class="result-row">
+                    <span class="result-label">Yours</span>
+                    <span id="resultUserAnswer" style="font-weight:500;"></span>
+                </div>
+                <div class="result-row">
+                    <span class="result-label">Answer</span>
+                    <span id="resultCorrectAnswer" style="font-weight:600; color:var(--accent);"></span>
+                </div>
+                <!-- Example sentence -->
+                <div class="example-area" id="exampleArea" style="display:none;">
+                    <div class="example-sentence" id="exampleSentence"></div>
+                    <div class="example-collocation" id="exampleCollocation"></div>
+                </div>
+            </div>
+            <button onclick="nextCard()" class="btn btn-accent w-full">Next</button>
         </div>
     </div>
 
-    <!-- Complete state (hidden) -->
+    <!-- Complete state -->
     <div id="completeState" class="complete-state fade-in" style="display: none;">
         <div class="emoji">🏆</div>
         <div class="text-lg font-bold" style="margin-bottom: 8px;">Session Complete!</div>
         <div id="sessionStats" class="text-sm text-dim" style="margin-bottom: 16px;"></div>
-        <!-- Failed items (#5) -->
         <div id="failedCardList" style="display:none; text-align:left; margin-bottom:16px;"></div>
         <div class="flex flex-col gap-8" style="max-width: 280px; margin: 0 auto;">
             <button id="retryFailedBtn" onclick="retryFailedCards()" class="btn btn-surface w-full" style="display:none;">Retry Failed</button>
@@ -335,8 +229,6 @@
     const currentDeck = '{{ deck }}';
     let cards = allCards;
     let idx = 0;
-    let isFlipped = false;
-    let isAnimating = false;
     let sessionCorrect = 0;
     let sessionTotal = 0;
     let failedCards = [];
@@ -368,7 +260,6 @@
             const resp = await fetch('/review/session');
             const saved = await resp.json();
             if (saved && !saved.done && saved.deck === currentDeck && saved.cardIds && saved.idx < saved.cardIds.length) {
-                // Restore progress - match saved card IDs to current cards
                 const cardMap = {};
                 allCards.forEach(c => cardMap[c.id] = c);
                 const restored = saved.cardIds.map(id => cardMap[id]).filter(Boolean);
@@ -384,50 +275,116 @@
         showCard();
     }
 
+    function normalize(s) {
+        return s.toLowerCase().trim().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ');
+    }
+
     function showCard() {
-        if (idx >= cards.length) {
-            showComplete();
-            return;
-        }
+        if (idx >= cards.length) { showComplete(); return; }
         const card = cards[idx];
         document.getElementById('cardFront').textContent = card.front;
-        document.getElementById('cardBack').textContent = card.back;
         const hintEl = document.getElementById('cardHint');
-        if (card.hint) {
-            hintEl.textContent = card.hint;
-            hintEl.style.display = '';
-        } else {
-            hintEl.style.display = 'none';
-        }
+        if (card.hint) { hintEl.textContent = card.hint; hintEl.style.display = ''; }
+        else { hintEl.style.display = 'none'; }
+
         document.getElementById('currentIdx').textContent = idx + 1;
         document.getElementById('totalCount').textContent = cards.length;
+        document.getElementById('reviewProgressFill').style.width = (idx / cards.length * 100) + '%';
 
-        // Reset example area
-        const exArea = document.getElementById('exampleArea');
-        exArea.style.display = 'none';
-        document.getElementById('exampleSentence').textContent = '';
-        document.getElementById('exampleCollocation').textContent = '';
-
-        // Reset flip
-        isFlipped = false;
-        document.getElementById('flashcard').classList.remove('flipped');
-        document.getElementById('ratingBar').style.opacity = '0';
-        document.getElementById('ratingBar').style.pointerEvents = 'none';
-
-        // Update progress
-        const pct = (idx / cards.length) * 100;
-        document.getElementById('reviewProgressFill').style.width = pct + '%';
+        // Reset
+        document.getElementById('answerInput').value = '';
+        document.getElementById('inputArea').style.display = '';
+        document.getElementById('resultArea').style.display = 'none';
+        document.getElementById('submitBtn').disabled = false;
+        document.getElementById('submitBtn').textContent = 'Check';
+        document.getElementById('exampleArea').style.display = 'none';
+        document.getElementById('answerInput').focus();
         saveSession();
     }
 
+    function checkMatch(userAnswer, correctAnswer) {
+        const u = normalize(userAnswer);
+        const c = normalize(correctAnswer);
+        if (u === c) return 'exact';
+        // Check if answer contains the key word (for multi-word answers)
+        if (c.includes(u) && u.length >= 3) return 'close';
+        if (u.includes(c)) return 'close';
+        return 'wrong';
+    }
+
+    window.checkAnswer = function() {
+        const input = document.getElementById('answerInput').value.trim();
+        if (!input) return;
+        document.getElementById('submitBtn').disabled = true;
+
+        const card = cards[idx];
+        const match = checkMatch(input, card.back);
+        const isCorrect = match === 'exact' || match === 'close';
+        const rating = match === 'exact' ? 5 : match === 'close' ? 3 : 1;
+
+        sessionTotal++;
+        if (isCorrect) {
+            sessionCorrect++;
+        } else {
+            failedCards.push(card);
+        }
+
+        // Show result
+        document.getElementById('inputArea').style.display = 'none';
+        document.getElementById('resultArea').style.display = '';
+
+        const resultCard = document.getElementById('resultCard');
+        resultCard.className = 'result-card ' + (isCorrect ? 'correct' : 'wrong');
+        document.getElementById('resultIcon').textContent = isCorrect ? '✅' : '❌';
+        document.getElementById('resultUserAnswer').textContent = input;
+        document.getElementById('resultUserAnswer').style.color = isCorrect ? 'var(--accent)' : 'var(--red)';
+        document.getElementById('resultCorrectAnswer').textContent = card.back;
+
+        // Load example sentence
+        loadExample(card);
+
+        // Send rating to server
+        fetch('/review/answer', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ card_id: card.id, rating: rating })
+        });
+        saveSession();
+    };
+
+    window.skipCard = function() {
+        const card = cards[idx];
+        sessionTotal++;
+        failedCards.push(card);
+
+        document.getElementById('inputArea').style.display = 'none';
+        document.getElementById('resultArea').style.display = '';
+        document.getElementById('resultCard').className = 'result-card wrong';
+        document.getElementById('resultIcon').textContent = '⏭️';
+        document.getElementById('resultUserAnswer').textContent = '(skipped)';
+        document.getElementById('resultUserAnswer').style.color = 'var(--text-dim)';
+        document.getElementById('resultCorrectAnswer').textContent = card.back;
+        loadExample(card);
+
+        fetch('/review/answer', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ card_id: card.id, rating: 1 })
+        });
+        saveSession();
+    };
+
+    window.nextCard = function() {
+        idx++;
+        showCard();
+    };
+
     function loadExample(card) {
-        // Load example sentence for vocab cards (#4)
         if (card.deck !== 'vocab') return;
         if (card.example_sentence) {
             showExample(card.example_sentence, card.collocation || '');
             return;
         }
-        // Extract word and chinese from card
         const word = card.back || '';
         let chinese = '';
         if (card.front && card.front.includes('"')) {
@@ -439,10 +396,8 @@
             category = card.hint.replace('Category: ', '');
         }
 
-        const exArea = document.getElementById('exampleArea');
-        exArea.style.display = 'block';
-        document.getElementById('exampleSentence').textContent = 'Loading example...';
-        document.getElementById('exampleSentence').className = 'example-loading';
+        document.getElementById('exampleArea').style.display = 'block';
+        document.getElementById('exampleSentence').textContent = 'Loading...';
 
         fetch('/review/example', {
             method: 'POST',
@@ -452,91 +407,36 @@
             if (data.sentence) {
                 showExample(data.sentence, data.collocation || '');
             } else {
-                exArea.style.display = 'none';
+                document.getElementById('exampleArea').style.display = 'none';
             }
         }).catch(() => {
-            exArea.style.display = 'none';
+            document.getElementById('exampleArea').style.display = 'none';
         });
     }
 
     function showExample(sentence, collocation) {
-        const exArea = document.getElementById('exampleArea');
-        const sentEl = document.getElementById('exampleSentence');
-        sentEl.className = 'example-sentence';
-        sentEl.textContent = '"' + sentence + '"';
-        exArea.style.display = 'block';
+        document.getElementById('exampleArea').style.display = 'block';
+        document.getElementById('exampleSentence').textContent = '"' + sentence + '"';
         if (collocation) {
-            document.getElementById('exampleCollocation').textContent = '📖 ' + collocation;
+            document.getElementById('exampleCollocation').textContent = collocation;
         }
     }
-
-    window.flipCard = function() {
-        if (isAnimating) return;
-        if (isFlipped) return;
-        isFlipped = true;
-        document.getElementById('flashcard').classList.add('flipped');
-        // Load example sentence async (#4)
-        loadExample(cards[idx]);
-        setTimeout(() => {
-            document.getElementById('ratingBar').style.opacity = '1';
-            document.getElementById('ratingBar').style.pointerEvents = 'auto';
-        }, 300);
-    };
-
-    window.submitRating = function(rating) {
-        if (isAnimating) return;
-        isAnimating = true;
-
-        const card = cards[idx];
-        sessionTotal++;
-        if (rating >= 2) {
-            sessionCorrect++;
-        } else {
-            // Track failed card for retry (#5)
-            failedCards.push(card);
-        }
-
-        const btns = document.querySelectorAll('.rating-btn');
-        btns.forEach(b => b.classList.remove('pressed'));
-        if (rating === 1) btns[0].classList.add('pressed');
-        else if (rating === 2) btns[1].classList.add('pressed');
-        else btns[2].classList.add('pressed');
-
-        fetch('/review/answer', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({card_id: card.id, rating: rating})
-        }).then(r => r.json()).then(() => {
-            setTimeout(() => {
-                idx++;
-                isAnimating = false;
-                showCard();
-            }, 350);
-        }).catch(() => {
-            isAnimating = false;
-            idx++;
-            showCard();
-        });
-    };
 
     function showComplete() {
         clearSession();
         document.getElementById('cardArea').style.display = 'none';
         document.getElementById('reviewProgress').style.display = 'none';
         document.getElementById('progressBadge').style.display = 'none';
-        const completeEl = document.getElementById('completeState');
-        completeEl.style.display = '';
+        document.getElementById('completeState').style.display = '';
 
         const pct = sessionTotal > 0 ? Math.round(sessionCorrect / sessionTotal * 100) : 0;
         const label = isRetryMode ? 'Retry' : 'Session';
         document.getElementById('sessionStats').innerHTML =
             label + ': <strong>' + sessionTotal + '</strong> card' + (sessionTotal !== 1 ? 's' : '') +
             ' with <strong>' + pct + '%</strong> accuracy.';
-
         document.getElementById('reviewProgressFill').style.width = '100%';
         document.getElementById('reviewSubtitle').textContent = 'Session complete';
 
-        // Show retry button if failed cards exist (#5)
         if (failedCards.length > 0 && !isRetryMode) {
             const listEl = document.getElementById('failedCardList');
             let html = '<div class="card" style="padding:12px;"><div style="font-size:0.8rem; color:var(--red); font-weight:600; margin-bottom:8px;">❌ Failed (' + failedCards.length + '):</div>';
@@ -567,6 +467,11 @@
         document.getElementById('progressBadge').style.display = '';
         showCard();
     };
+
+    // Enter to submit
+    document.getElementById('answerInput').addEventListener('keydown', e => {
+        if (e.key === 'Enter') checkAnswer();
+    });
 
     initSession();
 })();
