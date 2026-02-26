@@ -73,8 +73,8 @@ def cmd_review(client, args):
     cards = data['cards']
 
     if not cards:
-        print("\n  No cards due for review!")
-        print("  Come back later or try: englearn review --all\n")
+        print("\n  No cards due!")
+        print("  Come back later or try: englearn cards --all\n")
         return
 
     total = len(cards)
@@ -450,9 +450,9 @@ def _show_welcome(client):
     print()
     print("  Commands:")
     print("  ─────────────────────────────────────────────────────────")
-    print("    englearn review            Review flashcards (type answers)")
-    print("    englearn review -d vocab   Review vocab deck only")
-    print("    englearn review -d daily   Review pattern deck only")
+    print("    englearn cards             Flashcard practice (type answers)")
+    print("    englearn cards -d vocab    Vocab deck only")
+    print("    englearn cards -d daily    Pattern deck only")
     print("    englearn talk              Conversation practice (LLM scored)")
     print("    englearn talk -n 5         Talk with 5 rounds")
     print("    englearn stats             View learning statistics")
@@ -462,11 +462,11 @@ def _show_welcome(client):
     print()
     print("  Features:")
     print("  ─────────────────────────────────────────────────────────")
-    print("    Typing-based review     Type answers, auto-compare")
+    print("    Typing-based cards      Type answers, auto-compare")
     print("    LLM conversation score  6 dimensions: grammar, meaning,")
     print("                            tone, fluency, pattern, vocabulary")
     print("    One-tap vocab save      Tap any word to save with auto-translate")
-    print("    Spaced repetition       SM-2 algorithm schedules reviews")
+    print("    Spaced repetition       SM-2 algorithm schedules cards")
     print("    Session persistence     Resume where you left off")
     print()
 
@@ -531,8 +531,8 @@ def main():
     p_login = sub.add_parser('login', help='Login to web server')
     p_login.add_argument('--server', type=str, default=None, help='Server URL')
 
-    # review
-    p_review = sub.add_parser('review', help='Flashcard review (typing-based)')
+    # cards
+    p_review = sub.add_parser('cards', help='Flashcard practice (type answers)')
     p_review.add_argument('--deck', '-d', type=str, default=None,
                           help='Deck name (daily/express/vocab)')
     p_review.add_argument('--count', '-n', type=int, default=30, help='Number of cards')
@@ -570,7 +570,7 @@ def main():
         return
 
     commands = {
-        'review': cmd_review,
+        'cards': cmd_review,
         'talk': cmd_talk,
         'stats': cmd_stats,
         'vocab': cmd_vocab,
