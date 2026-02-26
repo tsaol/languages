@@ -1,16 +1,11 @@
-"""Conversation-based practice mode.
+"""Conversation-based practice mode with LLM scoring.
 
-Instead of dry flashcards, this puts sentence patterns into realistic
-work dialogue scenarios and lets the user practice through role-play.
+Puts sentence patterns into realistic work dialogue scenarios
+and lets the user practice through role-play. Uses the same
+Kimi K2.5 LLM scorer as the web Talk page.
 """
-import os
-import re
+import json
 import random
-import difflib
-import sqlite3
-from datetime import datetime
-from collections import defaultdict
-from englearn.config import DB_PATH
 from englearn.db import models
 
 
@@ -216,118 +211,170 @@ SCENARIO_TEMPLATES = [
 ]
 
 
-def _load_dynamic_scenarios():
-    """Load additional scenarios from database entries."""
-    extra = []
+def _score_with_llm(context, pattern, ai_says, user_input, good_responses):
+    """Score using LLM (same as web). Falls back to similarity."""
     try:
-        conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row
-        rows = conn.execute("""
-            SELECT original, corrected, idiomatic, explanation, pattern
-            FROM log_entries
-            WHERE status = 'incorrect'
-              AND pattern IS NOT NULL AND pattern != 'N/A' AND pattern != ''
-              AND idiomatic IS NOT NULL AND idiomatic != 'N/A'
-            ORDER BY RANDOM() LIMIT 30
-        """).fetchall()
-        conn.close()
-
-        for r in rows:
-            if any('\u4e00' <= c <= '\u9fff' for c in (r['idiomatic'] or '')):
-                continue
-            extra.append({
-                "context": f"Your original attempt: \"{r['original'][:60]}\"",
-                "pattern": r['pattern'],
-                "ai_says": f"(Based on your past error) Try saying this correctly:",
-                "good_responses": [r['idiomatic'], r['corrected']],
-            })
+        from englearn.scoring.llm_scorer import score_response
+        return score_response(context, pattern, ai_says, user_input, good_responses)
     except Exception:
-        pass
-    return extra
+        from difflib import SequenceMatcher
+        best_score = 0
+        best_match = good_responses[0] if good_responses else ""
+        user_clean = user_input.lower().strip().rstrip('.!?')
+        for resp in good_responses:
+            resp_clean = resp.lower().strip().rstrip('.!?')
+            sim = SequenceMatcher(None, user_clean, resp_clean).ratio()
+            if sim > best_score:
+                best_score = sim
+                best_match = resp
+        return {
+            "score": best_score,
+            "is_correct": best_score >= 0.80,
+            "dimensions": {},
+            "feedback": "",
+            "better_expression": best_match,
+            "common_mistake": "",
+            "corrections": [],
+        }
 
 
-def _score_response(user_input: str, good_responses: list) -> tuple:
-    """Score user response against good responses. Returns (score, best_match)."""
-    best_score = 0
-    best_match = good_responses[0] if good_responses else ""
-    user_clean = user_input.lower().strip().rstrip('.!?')
-
-    for resp in good_responses:
-        resp_clean = resp.lower().strip().rstrip('.!?')
-        sim = difflib.SequenceMatcher(None, user_clean, resp_clean).ratio()
-        if sim > best_score:
-            best_score = sim
-            best_match = resp
-    return best_score, best_match
+def _dim_bar(score, width=15):
+    """Render a dimension score as a mini bar."""
+    filled = int(score * width)
+    return '█' * filled + '░' * (width - filled)
 
 
 def run_conversation(count: int = 10):
-    """Run a conversation practice session."""
-    all_scenarios = list(SCENARIO_TEMPLATES)
-    dynamic = _load_dynamic_scenarios()
-    all_scenarios.extend(dynamic)
-    random.shuffle(all_scenarios)
+    """Run a conversation practice session with LLM scoring."""
+    # Load from DB (SM-2 scheduled) first, then templates as fallback
+    models.seed_talk_scenarios(SCENARIO_TEMPLATES)
+    db_scenarios = models.get_due_talk_scenarios(limit=count)
 
-    scenarios = all_scenarios[:count]
+    if db_scenarios:
+        scenarios = db_scenarios
+    else:
+        all_scenarios = list(SCENARIO_TEMPLATES)
+        random.shuffle(all_scenarios)
+        scenarios = all_scenarios[:count]
+
     total = len(scenarios)
-    score = 0
+    score_total = 0
     answered = 0
+    failed = []
 
     print()
     print("  ╔═══════════════════════════════════════════════════════╗")
     print("  ║        Conversation Practice / 对话练习               ║")
     print("  ╠═══════════════════════════════════════════════════════╣")
     print("  ║  I'll set up a work scenario.                        ║")
-    print("  ║  You respond in English.                             ║")
-    print("  ║  Type 'q' to quit, 'skip' to skip.                  ║")
+    print("  ║  You respond in English. LLM scores your answer.     ║")
+    print("  ║  Type 'q' to quit, 's' to skip.                     ║")
     print("  ╚═══════════════════════════════════════════════════════╝")
     print()
 
     try:
         for i, scene in enumerate(scenarios):
+            good_responses = scene.get('good_responses', [])
+            if isinstance(good_responses, str):
+                good_responses = json.loads(good_responses)
+
             print(f"  ── Round {i + 1}/{total} ──────────────────────────────────")
+            print()
+            print(f"  🤖 AI: \"{scene['ai_says']}\"")
             print()
             print(f"  📌 Scenario: {scene['context']}")
             print(f"  🎯 Pattern:  {scene['pattern']}")
-            print()
-            print(f"  🤖 AI: \"{scene['ai_says']}\"")
             print()
 
             user_input = input("  👤 You: ").strip()
 
             if user_input.lower() == 'q':
                 break
-            if user_input.lower() == 'skip':
-                print(f"  💡 Example: {scene['good_responses'][0]}")
+            if user_input.lower() == 's':
+                print(f"\n  ⏭️  Skipped")
+                print(f"  💡 Example: {good_responses[0] if good_responses else 'N/A'}")
                 print()
+                # Update SM-2 as failed
+                if 'id' in scene and scene['id']:
+                    models.update_talk_scenario_sm2(scene['id'], 0.0)
                 continue
 
             answered += 1
-            sim, best = _score_response(user_input, scene['good_responses'])
+            print("\n  Scoring...", end="", flush=True)
 
+            result = _score_with_llm(
+                scene['context'], scene['pattern'], scene['ai_says'],
+                user_input, good_responses
+            )
+
+            score = result['score']
+            score_total += score
+
+            # Update SM-2
+            if 'id' in scene and scene['id']:
+                models.update_talk_scenario_sm2(scene['id'], score)
+
+            print(f"\r  {'─' * 50}")
             print()
-            if sim >= 0.80:
-                print("  ✅ Excellent!")
-                score += 1
-            elif sim >= 0.55:
-                print("  ⚠️  Close! But can be better.")
+
+            # Result icon
+            if score >= 0.70:
+                print(f"  ✅ Excellent! ({score:.0%})")
+            elif score >= 0.45:
+                print(f"  ⚠️  Close! ({score:.0%})")
+                failed.append(i)
             else:
-                print("  ❌ Not quite. Study the example below.")
+                print(f"  ❌ Not quite. ({score:.0%})")
+                failed.append(i)
+
+            # Your answer with corrections
+            print()
+            corrections = result.get('corrections', [])
+            if corrections:
+                print(f"  Your answer: {user_input}")
+                for c in corrections:
+                    icon = {'grammar': '📝', 'spelling': '✏️', 'word_choice': '💬'}.get(c.get('type', ''), '•')
+                    print(f"    {icon} \"{c.get('wrong', '')}\" → \"{c.get('correct', '')}\" ({c.get('type', '')})")
+            else:
+                print(f"  Your answer: {user_input}")
+
+            # Better expression
+            better = result.get('better_expression', '')
+            if better:
+                print(f"  Better:      {better}")
+
+            # Dimensions
+            dims = result.get('dimensions', {})
+            if dims:
+                print()
+                labels = {'grammar': 'Grammar ', 'meaning': 'Meaning ', 'tone': 'Tone    ',
+                          'fluency': 'Fluency ', 'pattern': 'Pattern ', 'vocabulary': 'Vocab   '}
+                for k, v in dims.items():
+                    s = v.get('score', 0) if isinstance(v, dict) else 0
+                    note = v.get('note', '') if isinstance(v, dict) else ''
+                    label = labels.get(k, k.ljust(8))
+                    print(f"  {label} [{_dim_bar(s)}] {s:.0%}  {note}")
+
+            # Feedback
+            feedback = result.get('feedback', '')
+            if feedback:
+                print(f"\n  💡 {feedback}")
+
+            # Common mistake
+            mistake = result.get('common_mistake', '')
+            if mistake:
+                print(f"  ⚠  Common mistake: {mistake}")
 
             print()
-            print(f"  Your answer:    {user_input}")
-            print(f"  Best response:  {best}")
-            if len(scene['good_responses']) > 1:
-                print(f"  Also accepted:  {scene['good_responses'][1]}")
-            print()
 
-            # Record to quiz_results
+            # Record
             models.record_quiz_result(
                 quiz_type='conversation',
                 question=scene['context'],
                 user_answer=user_input,
-                correct_answer=best,
-                is_correct=(sim >= 0.80),
+                correct_answer=better or (good_responses[0] if good_responses else ''),
+                is_correct=result.get('is_correct', False),
+                flashcard_id=scene.get('id'),
             )
 
             input("  Press Enter to continue...")
@@ -343,15 +390,17 @@ def run_conversation(count: int = 10):
     print(f"  ──────────────────────────────────────────")
     print(f"  Rounds:   {answered}/{total}")
     if answered > 0:
-        pct = score * 100 // answered
-        print(f"  Score:    {score}/{answered} ({pct}%)")
-        if pct >= 80:
+        avg_score = score_total / answered
+        print(f"  Avg Score: {avg_score:.0%}")
+        correct_count = answered - len(failed)
+        print(f"  Correct:   {correct_count}/{answered}")
+        if avg_score >= 0.70:
             print(f"  Great conversational English!")
-        elif pct >= 50:
+        elif avg_score >= 0.45:
             print(f"  Good effort! Keep practicing.")
         else:
             print(f"  Review the patterns and try again.")
     print(f"  ══════════════════════════════════════════")
     print()
 
-    models.record_daily_progress(quiz_taken=answered, quiz_correct=score)
+    models.record_daily_progress(quiz_taken=answered, quiz_correct=answered - len(failed))

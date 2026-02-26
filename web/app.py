@@ -41,6 +41,8 @@ def login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         if not session.get('logged_in'):
+            if request.path.startswith('/api/') or request.is_json:
+                return jsonify({"error": "unauthorized"}), 401
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated
@@ -622,6 +624,93 @@ def api_sync_log():
             pass
 
     return jsonify({"ok": True, "imported": imported, "errors": errors})
+
+
+# ─── CLI API endpoints ───────────────────────────────────────────────────────
+
+
+@app.route("/api/review/cards")
+@login_required
+def api_review_cards():
+    """Get due flashcards as JSON for CLI."""
+    deck = request.args.get("deck", "")
+    limit = int(request.args.get("limit", 20))
+    cards = get_due_flashcards(deck=deck if deck else None, limit=limit)
+    return jsonify({"cards": cards, "total": len(cards)})
+
+
+@app.route("/api/talk/scenarios")
+@login_required
+def api_talk_scenarios():
+    """Get due talk scenarios as JSON for CLI."""
+    from englearn.quiz.conversation import SCENARIO_TEMPLATES
+    init_db()
+    seed_talk_scenarios(SCENARIO_TEMPLATES)
+    _generate_dynamic_scenarios()
+    limit = int(request.args.get("limit", 10))
+    scenarios = get_due_talk_scenarios(limit=limit)
+    random.shuffle(scenarios)
+    return jsonify({"scenarios": scenarios, "total": len(scenarios)})
+
+
+@app.route("/api/stats")
+@login_required
+def api_stats():
+    """Get stats as JSON for CLI."""
+    conn = get_connection()
+    try:
+        deck_stats = get_deck_stats()
+        total_cards = sum(d['total'] for d in deck_stats)
+        total_mastered = sum(d['mastered'] for d in deck_stats)
+
+        quiz_total = conn.execute("SELECT COUNT(*) as c FROM quiz_results").fetchone()['c']
+        quiz_correct = conn.execute("SELECT COALESCE(SUM(is_correct), 0) as c FROM quiz_results").fetchone()['c']
+        quiz_pct = round(quiz_correct / quiz_total * 100) if quiz_total > 0 else 0
+
+        from englearn.db.models import get_progress_history, get_category_stats
+        all_progress = get_progress_history(days=30)
+        progress_map = {p['date']: p for p in all_progress}
+
+        weekly = []
+        for i in range(6, -1, -1):
+            d = (datetime.now() - timedelta(days=i)).strftime("%Y-%m-%d")
+            weekly.append(progress_map.get(d, {'date': d, 'cards_reviewed': 0, 'cards_correct': 0, 'quiz_taken': 0, 'quiz_correct': 0}))
+
+        today = datetime.now().strftime("%Y-%m-%d")
+        tp = progress_map.get(today, {'cards_reviewed': 0, 'cards_correct': 0, 'quiz_taken': 0, 'quiz_correct': 0})
+        today_talk = conn.execute("SELECT COUNT(*) as c FROM talk_scenarios WHERE last_review = ?", (today,)).fetchone()['c']
+
+        # Streak
+        streak = 0
+        check_date = datetime.now()
+        while True:
+            d = check_date.strftime("%Y-%m-%d")
+            if d in progress_map:
+                p = progress_map[d]
+                if p['cards_reviewed'] > 0 or p['quiz_taken'] > 0:
+                    streak += 1
+                    check_date -= timedelta(days=1)
+                    continue
+            break
+    finally:
+        conn.close()
+
+    return jsonify({
+        "total_cards": total_cards,
+        "total_mastered": total_mastered,
+        "accuracy": {"total": quiz_total, "correct": quiz_correct, "pct": quiz_pct},
+        "weekly": weekly,
+        "today": {
+            "cards_reviewed": tp['cards_reviewed'],
+            "cards_correct": tp['cards_correct'],
+            "quiz_taken": tp['quiz_taken'],
+            "quiz_correct": tp['quiz_correct'],
+            "talk_rounds": today_talk,
+        },
+        "streak": streak,
+        "decks": deck_stats,
+        "categories": get_category_stats(),
+    })
 
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
