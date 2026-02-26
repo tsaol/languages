@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.2 (2026-02-26)
+
+- Fix: `/api/sync-log` endpoint missing authentication (security)
+- Fix: Web review rating mismatch — exact match SM-2 updates were silently failing
+
 ## 0.3.1 (2026-02-26)
 
 - CLI command `review` renamed to `cards`
