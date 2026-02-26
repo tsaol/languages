@@ -428,11 +428,10 @@
     .send-btn:active { transform: scale(0.92); }
     .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-    /* Action text *action* rendered as italic + dim */
+    /* Action text *action* rendered in parentheses + different color */
     .action-text {
-        font-style: italic;
-        color: var(--text-dim);
-        opacity: 0.85;
+        color: var(--yellow);
+        opacity: 0.8;
     }
 
     /* Clickable words */
@@ -443,13 +442,6 @@
         transition: background 0.15s;
     }
     .clickable-words .word:hover { background: var(--blue-dim); color: var(--blue); }
-
-    /* Don't style action words as clickable */
-    .action-text .word {
-        cursor: default;
-        color: var(--text-dim);
-    }
-    .action-text .word:hover { background: none; color: var(--text-dim); }
 
     .tap-hint {
         font-size: 0.62rem;
@@ -826,13 +818,14 @@ function scrollToBottom() {
 // ── Utils ──
 function makeWordsClickable(text) {
     if (!text) return '';
-    // Split on *action* blocks — actions render as italic, not clickable
+    // Split on *action* blocks — actions render in parentheses + yellow color, still clickable
     let result = '';
     const parts = text.split(/(\*[^*]+\*)/g);
     for (const part of parts) {
         if (part.startsWith('*') && part.endsWith('*') && part.length > 2) {
-            const inner = esc(part.slice(1, -1));
-            result += '<span class="action-text">' + inner + '</span>';
+            const inner = esc(part.slice(1, -1)).replace(/([a-zA-Z'-]+)/g,
+                '<span class="word" onclick="openVocabForm(this.textContent)">$1</span>');
+            result += '<span class="action-text">(' + inner + ')</span>';
         } else {
             result += esc(part).replace(/([a-zA-Z'-]+)/g,
                 '<span class="word" onclick="openVocabForm(this.textContent)">$1</span>');
