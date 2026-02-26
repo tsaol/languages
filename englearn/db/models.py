@@ -437,3 +437,45 @@ def cache_flashcard_example(card_id: int, sentence: str, collocation: str):
         conn.commit()
     finally:
         conn.close()
+
+
+# ─── Chat Messages ───────────────────────────────────────────────────────────
+
+
+def insert_chat_message(role_id: str, sender: str, message: str, corrections: str = None) -> int:
+    """Insert a chat message and return its ID."""
+    conn = get_connection()
+    try:
+        cur = conn.execute(
+            """INSERT INTO chat_messages (role_id, sender, message, corrections)
+               VALUES (?, ?, ?, ?)""",
+            (role_id, sender, message, corrections)
+        )
+        conn.commit()
+        return cur.lastrowid
+    finally:
+        conn.close()
+
+
+def get_chat_history(role_id: str, limit: int = 20) -> List[dict]:
+    """Get chat history for a role, oldest first for display."""
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            """SELECT * FROM chat_messages WHERE role_id = ?
+               ORDER BY id DESC LIMIT ?""",
+            (role_id, limit)
+        ).fetchall()
+        return [dict(r) for r in reversed(rows)]
+    finally:
+        conn.close()
+
+
+def clear_chat_history(role_id: str) -> None:
+    """Clear all chat messages for a role."""
+    conn = get_connection()
+    try:
+        conn.execute("DELETE FROM chat_messages WHERE role_id = ?", (role_id,))
+        conn.commit()
+    finally:
+        conn.close()

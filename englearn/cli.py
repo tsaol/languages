@@ -399,6 +399,78 @@ def cmd_vocab(client, args):
         print(f"  Error: {result.get('error', 'Failed')}\n")
 
 
+def cmd_chat(client, args):
+    """Free-form chat with an AI role for conversation practice."""
+    role_id = getattr(args, 'role', None)
+
+    if not role_id:
+        print()
+        print("  Select a chat partner:")
+        print("  ─────────────────────────────────────────────────────────")
+        print("    1. Sarah - American tech PM (casual, direct)")
+        print("    2. James - British English teacher (patient, challenging)")
+        print()
+        choice = input("  Choice (1/2): ").strip()
+        if choice == '1':
+            role_id = 'sarah'
+        elif choice == '2':
+            role_id = 'james'
+        else:
+            print("  Invalid choice.\n")
+            return
+
+    role_names = {'sarah': 'Sarah', 'james': 'James'}
+    role_name = role_names.get(role_id, role_id)
+
+    print()
+    print(f"  ╔═══════════════════════════════════════════════════════╗")
+    print(f"  ║          Chat with {role_name:<33s}║")
+    print(f"  ╠═══════════════════════════════════════════════════════╣")
+    print(f"  ║  Type in English. 'q' to quit.                      ║")
+    print(f"  ╚═══════════════════════════════════════════════════════╝")
+    print()
+
+    try:
+        while True:
+            user_input = input("  You: ").strip()
+            if not user_input:
+                continue
+            if user_input.lower() == 'q':
+                break
+
+            print("  ...", end="", flush=True)
+            result = client.send_chat_message(role_id, user_input)
+
+            if not result:
+                print("\r  Error: not logged in or server error.")
+                break
+
+            if result.get('error'):
+                print(f"\r  Error: {result['error']}")
+                continue
+
+            reply = result.get('reply', '')
+            corrections = result.get('corrections', [])
+
+            print(f"\r  {role_name}: {reply}")
+
+            if corrections:
+                print()
+                print("  Corrections:")
+                for c in corrections:
+                    wrong = c.get('wrong', '')
+                    correct = c.get('correct', '')
+                    ctype = c.get('type', '')
+                    print(f"    - \"{wrong}\" -> \"{correct}\" ({ctype})")
+
+            print()
+
+    except (KeyboardInterrupt, EOFError):
+        print("\n")
+
+    print(f"  Chat ended.\n")
+
+
 def cmd_config(client, args):
     """Show or set configuration."""
     from englearn.web_client import _load_config, _save_config
@@ -458,6 +530,8 @@ def _show_welcome(client):
     print("    englearn cards -d daily    Pattern deck only")
     print("    englearn talk              Conversation practice (LLM scored)")
     print("    englearn talk -n 5         Talk with 5 rounds")
+    print("    englearn chat              Free-form chat with AI roles")
+    print("    englearn chat -r sarah     Chat with Sarah (American PM)")
     print("    englearn stats             View learning statistics")
     print("    englearn vocab <word>      Save a word (auto-translates)")
     print("    englearn config            Show/set config (server URL)")
@@ -545,6 +619,11 @@ def main():
     p_talk.add_argument('--count', '-n', type=int, default=20, help='Number of rounds')
     p_talk.add_argument('--all', '-a', action='store_true', default=False, help='Include already-reviewed scenarios')
 
+    # chat
+    p_chat = sub.add_parser('chat', help='Free-form chat with AI roles')
+    p_chat.add_argument('--role', '-r', type=str, default=None,
+                        choices=['sarah', 'james'], help='Chat partner (sarah/james)')
+
     # stats
     sub.add_parser('stats', help='Show learning statistics')
 
@@ -575,6 +654,7 @@ def main():
     commands = {
         'cards': cmd_review,
         'talk': cmd_talk,
+        'chat': cmd_chat,
         'stats': cmd_stats,
         'vocab': cmd_vocab,
     }

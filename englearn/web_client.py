@@ -96,3 +96,19 @@ class Client:
             "word": word, "chinese": chinese, "category": category,
         })
         return resp.json()
+
+    def send_chat_message(self, role_id, message):
+        resp = self.session.post(self._url("/api/chat/send"), json={
+            "role_id": role_id, "message": message,
+        })
+        if resp.status_code == 401:
+            return None
+        return resp.json()
+
+    def get_chat_history(self, role_id, limit=20):
+        resp = self.session.get(self._url("/api/chat/history"), params={
+            "role_id": role_id, "limit": limit,
+        })
+        if resp.status_code == 401:
+            return None
+        return resp.json()

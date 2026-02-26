@@ -31,6 +31,20 @@ def _migrate(conn):
         conn.execute("ALTER TABLE flashcards ADD COLUMN example_sentence TEXT")
     if 'collocation' not in cols:
         conn.execute("ALTER TABLE flashcards ADD COLUMN collocation TEXT")
+
+    # Add chat_messages table if missing
+    tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
+    if 'chat_messages' not in tables:
+        conn.execute("""CREATE TABLE IF NOT EXISTS chat_messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            role_id TEXT NOT NULL,
+            sender TEXT NOT NULL,
+            message TEXT NOT NULL,
+            corrections TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )""")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_chat_messages_role ON chat_messages(role_id)")
+
     conn.commit()
 
 
