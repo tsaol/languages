@@ -552,10 +552,10 @@ def api_chat_send():
     # Get AI reply with memory context and scenario
     result = chat_reply(role_id, message, history, memories=memories, scenario=scenario)
 
-    # Insert AI reply
-    corrections_json = json.dumps(result.get("corrections", []))
+    # Insert AI reply (corrections NOT stored — they are from the independent teacher agent
+    # and should not pollute conversation context)
     ai_msg_id = insert_chat_message(role_id, role_id, result["reply"],
-                                    corrections=corrections_json, scenario_id=scenario_id)
+                                    scenario_id=scenario_id)
 
     return jsonify({
         "reply": result["reply"],
