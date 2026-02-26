@@ -397,6 +397,68 @@ def cmd_login(client, args):
         print(f"  ❌ Login failed\n")
 
 
+def _show_welcome(client):
+    """Show welcome screen with features and quick stats."""
+    print()
+    print("  ╔═══════════════════════════════════════════════════════╗")
+    print("  ║              EngLearn v0.3.0                         ║")
+    print("  ║         English Learning from Real Errors            ║")
+    print("  ╚═══════════════════════════════════════════════════════╝")
+    print()
+    print("  Commands:")
+    print("  ─────────────────────────────────────────────────────────")
+    print("    englearn review            Review flashcards (type answers)")
+    print("    englearn review -d vocab   Review vocab deck only")
+    print("    englearn review -d daily   Review pattern deck only")
+    print("    englearn talk              Conversation practice (LLM scored)")
+    print("    englearn talk -n 5         Talk with 5 rounds")
+    print("    englearn stats             View learning statistics")
+    print("    englearn vocab <word>      Save a word (auto-translates)")
+    print("    englearn login             Login to server")
+    print()
+    print("  Features:")
+    print("  ─────────────────────────────────────────────────────────")
+    print("    📝 Typing-based review     Type answers, auto-compare")
+    print("    💬 LLM conversation score  6 dimensions: grammar, meaning,")
+    print("                               tone, fluency, pattern, vocabulary")
+    print("    📖 One-tap vocab save      Tap any word to save with auto-translate")
+    print("    📊 Spaced repetition       SM-2 algorithm schedules reviews")
+    print("    🔄 Session persistence     Resume where you left off")
+    print()
+
+    # Try to show quick stats if logged in
+    try:
+        data = client.get_stats()
+        if data:
+            today = data.get('today', {})
+            tc = today.get('cards_reviewed', 0)
+            tq = today.get('quiz_taken', 0)
+            tt = today.get('talk_rounds', 0)
+            streak = data.get('streak', 0)
+
+            print("  Today:")
+            print("  ─────────────────────────────────────────────────────────")
+            if tc + tq + tt > 0:
+                parts = []
+                if tc:
+                    parts.append(f"{tc} cards")
+                if tq:
+                    parts.append(f"{tq} quiz")
+                if tt:
+                    parts.append(f"{tt} talk")
+                print(f"    {' | '.join(parts)}", end="")
+                if streak > 0:
+                    print(f"  🔥 {streak}-day streak")
+                else:
+                    print()
+            else:
+                print("    No activity yet. Start learning!")
+            print()
+    except Exception:
+        print("  Not logged in. Run: englearn login")
+        print()
+
+
 # ─── Main ────────────────────────────────────────────────────────────────────
 
 
@@ -440,10 +502,7 @@ def main():
         return
 
     if not args.command:
-        # Default: show stats
-        if not _ensure_login(client):
-            return
-        cmd_stats(client, args)
+        _show_welcome(client)
         return
 
     if not _ensure_login(client):
