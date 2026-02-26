@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.0 (2026-02-26)
+
+- Independent teacher agent for error correction (separate from role conversation)
+- Rich corrections: idiomatic expression, Chinese explanation, sentence pattern, tense
+- Corrections are display-only — not stored in chat history, not part of conversation context
+- Switch chat model from Mistral Large 3 to DeepSeek V3.2
+- Delete single chat message: long press (mobile) or right-click (desktop)
+- Fix JSON parsing for markdown code blocks and "value" or "value" patterns
+- Fix CLI --role choices (now supports all 5 roles)
+- Fix free-talk history clearing bug (no longer wipes scenario histories)
+
 ## 0.4.0 (2026-02-26)
 
 - Chat roleplay system redesigned (inspired by SillyTavern character cards)
@@ -7,8 +18,7 @@
 - 5 roles: Sarah (American PM), James (British teacher), Emily (Aussie account manager), David (Silicon Valley tech lead), Taotao (shy executive assistant)
 - Scenario system: each role has 3-4 goal-oriented scenarios + Free Talk
 - AI sends first_message to set conversation tone (SillyTavern-style greeting)
-- Example dialogue in prompt teaches AI how to correct errors in-character
-- Post-history instruction ensures grammar correction every turn
+- Example dialogue teaches AI conversation style (no longer includes correction examples)
 - Scenario context and target vocabulary injected into prompts
 - Web UI: 3-step flow (role selection -> scenario selection -> chat)
 - CLI: interactive role + scenario selection menu
