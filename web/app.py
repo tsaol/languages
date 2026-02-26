@@ -494,6 +494,7 @@ def api_chat_roles():
             "name": role["name"],
             "title": role["title"],
             "description": role["description"],
+            "appearance": role.get("appearance", ""),
             "personality": role["personality"],
             "scenarios": [
                 {
@@ -502,6 +503,8 @@ def api_chat_roles():
                     "desc": s["desc"],
                     "difficulty": s["difficulty"],
                     "vocabulary": s.get("vocabulary", []),
+                    "location": s.get("location", ""),
+                    "attire": s.get("attire", ""),
                 }
                 for s in role.get("scenarios", [])
             ],
