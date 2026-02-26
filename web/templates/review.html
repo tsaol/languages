@@ -306,7 +306,9 @@
         const u = normalize(userAnswer);
         const c = normalize(correctAnswer);
         if (u === c) return 'exact';
-        // Check if answer contains the key word (for multi-word answers)
+        // Single word answers require exact spelling
+        if (!c.includes(' ')) return 'wrong';
+        // Multi-word phrases: allow partial/close match
         if (c.includes(u) && u.length >= 3) return 'close';
         if (u.includes(c)) return 'close';
         return 'wrong';
