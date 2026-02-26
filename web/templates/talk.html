@@ -3,6 +3,24 @@
 
 {% block title %}EngLearn - Talk{% endblock %}
 
+{% block head %}
+<style>
+    .clickable-words .word {
+        cursor: pointer;
+        border-radius: 3px;
+        padding: 0 1px;
+        transition: background 0.15s;
+    }
+    .clickable-words .word:hover {
+        background: var(--blue-dim);
+        color: var(--blue);
+    }
+    .clickable-words .word:active {
+        transform: scale(0.95);
+    }
+</style>
+{% endblock %}
+
 {% block body %}
 <div class="container fade-in">
 
@@ -23,17 +41,31 @@
     <div class="progress-fill" id="progressFill" style="width:0%"></div>
 </div>
 
+<!-- Floating vocab save form (#10) -->
+<div id="vocabOverlay" style="display:none; position:fixed; bottom:0; left:0; right:0; z-index:999; padding:16px; background:var(--surface); border-top:1px solid var(--border); box-shadow:0 -4px 20px rgba(0,0,0,0.3);">
+    <div style="max-width:480px; margin:0 auto;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <span style="font-size:0.8rem; font-weight:600; color:var(--blue);">📖 Save to Vocab</span>
+            <span onclick="closeVocabForm()" style="cursor:pointer; font-size:1.2rem; color:var(--text-dim);">✕</span>
+        </div>
+        <input type="text" id="vocabWord" readonly style="width:100%; padding:10px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:0.95rem; font-weight:600; margin-bottom:8px;">
+        <input type="text" id="vocabChinese" placeholder="Chinese meaning..." style="width:100%; padding:10px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:0.95rem; margin-bottom:8px;">
+        <button onclick="saveToVocab()" class="btn btn-accent w-full">Save</button>
+        <div id="vocabSuccess" style="display:none; font-size:0.85rem; color:var(--accent); text-align:center; margin-top:8px;"></div>
+    </div>
+</div>
+
 <!-- Scenario card -->
 <div id="sceneArea">
     <div class="card" style="margin-bottom:12px;">
         <div class="card-title">Scenario</div>
-        <div id="sceneContext" style="font-size:0.95rem; margin-bottom:12px;"></div>
+        <div id="sceneContext" class="clickable-words" style="font-size:0.95rem; margin-bottom:12px;"></div>
         <div style="font-size:0.8rem; color:var(--accent);" id="scenePattern"></div>
     </div>
 
     <div class="card" style="margin-bottom:16px;">
         <div style="font-size:0.7rem; color:var(--text-dim); font-weight:600; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:8px;">AI says</div>
-        <div id="aiSays" style="font-size:1rem; font-style:italic;"></div>
+        <div id="aiSays" class="clickable-words" style="font-size:1rem; font-style:italic;"></div>
     </div>
 
     <!-- Input -->
@@ -56,17 +88,8 @@
             <div id="fbUserAnswer" style="font-size:0.95rem; margin-bottom:6px; line-height:1.6;"></div>
             <!-- Better expression right after (#8) -->
             <div style="font-size:0.78rem; color:var(--accent); margin-bottom:4px;">Better expression:</div>
-            <div id="fbBestAnswer" style="font-size:0.95rem; font-weight:500; margin-bottom:12px;"></div>
-            <!-- Save to Vocab chips (#10) -->
-            <div id="fbVocabArea" style="display:none; margin-bottom:12px;">
-                <div id="fbVocabChips" style="display:flex; gap:6px; flex-wrap:wrap;"></div>
-                <div id="fbVocabForm" style="display:none; margin-top:8px; padding:10px; background:var(--surface2); border-radius:8px;">
-                    <input type="text" id="vocabWord" readonly style="width:100%; padding:8px; background:var(--bg); border:1px solid var(--border); border-radius:6px; color:var(--text); font-size:0.85rem; margin-bottom:6px;">
-                    <input type="text" id="vocabChinese" placeholder="Chinese meaning..." style="width:100%; padding:8px; background:var(--bg); border:1px solid var(--border); border-radius:6px; color:var(--text); font-size:0.85rem; margin-bottom:6px;">
-                    <button onclick="saveToVocab()" class="btn btn-accent btn-sm w-full">Save to Vocab</button>
-                </div>
-                <div id="fbVocabSuccess" style="display:none; font-size:0.8rem; color:var(--accent); margin-top:6px;"></div>
-            </div>
+            <div id="fbBestAnswer" class="clickable-words" style="font-size:0.95rem; font-weight:500; margin-bottom:4px;"></div>
+            <div style="font-size:0.65rem; color:var(--text-dim); margin-bottom:12px; opacity:0.6;">Tap any word to save to Vocab</div>
             <!-- Details below -->
             <div id="fbDetail" style="display:none; font-size:0.85rem; color:var(--blue); margin-bottom:10px; padding:10px; background:var(--blue-dim); border-radius:8px;"></div>
             <div id="fbDimensions" style="display:none; margin-bottom:10px;"></div>
@@ -136,9 +159,9 @@ function showScene() {
     const s = scenarios[idx];
     document.getElementById('roundNum').textContent = idx + 1;
     document.getElementById('totalNum').textContent = scenarios.length;
-    document.getElementById('sceneContext').textContent = s.context;
+    document.getElementById('sceneContext').innerHTML = makeWordsClickable(s.context);
     document.getElementById('scenePattern').textContent = '🎯 ' + s.pattern;
-    document.getElementById('aiSays').textContent = '"' + s.ai_says + '"';
+    document.getElementById('aiSays').innerHTML = '"' + makeWordsClickable(s.ai_says) + '"';
     document.getElementById('userInput').value = '';
     document.getElementById('feedback').style.display = 'none';
     // Show keyword hints extracted from good responses
@@ -200,11 +223,8 @@ async function submitAnswer() {
     // Render user answer with error highlights (#9)
     document.getElementById('fbUserAnswer').innerHTML = highlightErrors(input, data.corrections || []);
 
-    // Better expression right after user answer (#8)
-    document.getElementById('fbBestAnswer').textContent = data.best_response;
-
-    // Vocab chips from better expression (#10)
-    showVocabChips(data.best_response);
+    // Better expression right after user answer (#8), with clickable words (#10)
+    document.getElementById('fbBestAnswer').innerHTML = makeWordsClickable(data.best_response);
 
     const fbDetail = document.getElementById('fbDetail');
     if (data.feedback) {
@@ -290,38 +310,24 @@ function escapeRegex(s) {
     return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-// (#10) Show vocab chips from better expression
-const STOP_WORDS = new Set(['i','me','my','you','your','he','she','it','we','they','them','the','a','an','is','am','are','was','were','be','been','being','have','has','had','do','does','did','will','would','could','should','shall','can','may','might','must','to','of','in','for','on','at','by','with','from','as','into','about','up','out','if','or','and','but','not','no','so','this','that','these','those','what','which','who','when','where','how','all','each','just','than','then','too','very','also','its','our','his','her','their','there','here','some','any','more','most','other','new','now','only','still','even','back','after','over','such','get','got','make','said','like','just','well','been','much','before','between','after','through','down','own','same']);
-
-function showVocabChips(bestResponse) {
-    const area = document.getElementById('fbVocabArea');
-    const chipsEl = document.getElementById('fbVocabChips');
-    document.getElementById('fbVocabForm').style.display = 'none';
-    document.getElementById('fbVocabSuccess').style.display = 'none';
-
-    if (!bestResponse) { area.style.display = 'none'; return; }
-
-    const words = [...new Set(
-        bestResponse.split(/\s+/)
-            .map(w => w.toLowerCase().replace(/[^a-z'-]/g, ''))
-            .filter(w => w.length > 3 && !STOP_WORDS.has(w))
-    )].slice(0, 6);
-
-    if (words.length === 0) { area.style.display = 'none'; return; }
-
-    chipsEl.innerHTML = '<span style="font-size:0.72rem; color:var(--text-dim);">📖 Save:</span> ' +
-        words.map(w =>
-            `<span onclick="openVocabForm('${escapeHtml(w)}')" style="padding:3px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;font-size:0.75rem;color:var(--blue);cursor:pointer;transition:all 0.15s;">${w}</span>`
-        ).join('');
-    area.style.display = 'block';
+// (#10) Make any word on the page tappable to save to Vocab
+function makeWordsClickable(text) {
+    if (!text) return '';
+    return text.replace(/([a-zA-Z'-]+)/g, '<span class="word" onclick="openVocabForm(this.textContent)">$1</span>');
 }
 
 function openVocabForm(word) {
-    document.getElementById('vocabWord').value = word;
+    const clean = word.replace(/[^a-zA-Z'-]/g, '').toLowerCase();
+    if (clean.length < 2) return;
+    document.getElementById('vocabWord').value = clean;
     document.getElementById('vocabChinese').value = '';
-    document.getElementById('fbVocabForm').style.display = 'block';
-    document.getElementById('fbVocabSuccess').style.display = 'none';
+    document.getElementById('vocabSuccess').style.display = 'none';
+    document.getElementById('vocabOverlay').style.display = 'block';
     document.getElementById('vocabChinese').focus();
+}
+
+function closeVocabForm() {
+    document.getElementById('vocabOverlay').style.display = 'none';
 }
 
 async function saveToVocab() {
@@ -336,12 +342,17 @@ async function saveToVocab() {
     });
     const data = await resp.json();
     if (data.ok) {
-        document.getElementById('fbVocabForm').style.display = 'none';
-        const el = document.getElementById('fbVocabSuccess');
-        el.textContent = '✓ "' + word + '" saved to Vocab!';
+        const el = document.getElementById('vocabSuccess');
+        el.textContent = '✓ "' + word + '" saved!';
         el.style.display = 'block';
+        setTimeout(() => closeVocabForm(), 1000);
     }
 }
+
+// Close vocab form on Enter in Chinese input
+document.getElementById('vocabChinese').addEventListener('keydown', e => {
+    if (e.key === 'Enter') saveToVocab();
+});
 
 function skipRound() {
     const s = scenarios[idx];
@@ -350,13 +361,11 @@ function skipRound() {
     document.getElementById('feedbackText').textContent = 'Skipped';
     document.getElementById('feedbackText').style.color = 'var(--text-dim)';
     document.getElementById('fbUserAnswer').innerHTML = '<span style="color:var(--text-dim);">(skipped)</span>';
-    document.getElementById('fbBestAnswer').textContent = s.good_responses[0];
-    document.getElementById('fbVocabArea').style.display = 'none';
+    document.getElementById('fbBestAnswer').innerHTML = makeWordsClickable(s.good_responses[0]);
     document.getElementById('fbDetail').style.display = 'none';
     document.getElementById('fbDimensions').style.display = 'none';
     document.getElementById('fbMistake').style.display = 'none';
     document.getElementById('submitBtn').disabled = true;
-    showVocabChips(s.good_responses[0]);
 }
 
 function nextRound() {
