@@ -9,20 +9,36 @@ from englearn.web_client import Client
 
 
 def _ensure_login(client):
-    """Ensure the client is authenticated. Prompt if needed."""
-    # Quick check by hitting an API endpoint
+    """Ensure the client is authenticated. Prompt for setup if first time."""
+    from englearn.web_client import _load_config, _save_config
+
+    cfg = _load_config()
+
+    # First launch: no server configured
+    if not cfg.get('server'):
+        print("\n  Welcome to EngLearn! First-time setup:")
+        print("  ─────────────────────────────────────────")
+        server = input("  Server URL (e.g. http://your-server:5555): ").strip()
+        if not server:
+            print("  Cancelled.\n")
+            return False
+        cfg['server'] = server
+        _save_config(cfg)
+        client.server = server
+
+    # Quick check
     result = client.get_stats()
     if result is not None:
         return True
 
-    print("\n  Login required.")
+    print(f"\n  Login required. (Server: {client.server})")
     username = input("  Username: ").strip()
     password = getpass.getpass("  Password: ")
     if client.login(username, password):
-        print("  Logged in.\n")
+        print("  ✅ Logged in.\n")
         return True
     else:
-        print("  Login failed.\n")
+        print("  ❌ Login failed.\n")
         return False
 
 
@@ -385,14 +401,44 @@ def cmd_vocab(client, args):
         print(f"  ❌ {result.get('error', 'Failed')}\n")
 
 
+def cmd_config(client, args):
+    """Show or set configuration."""
+    from englearn.web_client import _load_config, _save_config
+    cfg = _load_config()
+
+    if args.key and args.value:
+        cfg[args.key] = args.value
+        _save_config(cfg)
+        # Update client if server changed
+        if args.key == 'server':
+            client.server = args.value
+        print(f"  ✅ {args.key} = {args.value}\n")
+    elif args.key:
+        print(f"  {args.key} = {cfg.get(args.key, '(not set)')}\n")
+    else:
+        print(f"\n  EngLearn Config (~/.englearn_cli.json)")
+        print(f"  {'─' * 45}")
+        print(f"    server  = {cfg.get('server', '(not set)')}")
+        logged_in = bool(cfg.get('cookies'))
+        print(f"    login   = {'yes' if logged_in else 'no'}")
+        print()
+        print(f"  Usage:")
+        print(f"    englearn config server http://your-server:5555")
+        print()
+
+
 def cmd_login(client, args):
     """Login to web server."""
-    server = args.server or client.server
-    client.server = server
+    if args.server:
+        client.server = args.server
+        from englearn.web_client import _load_config, _save_config
+        cfg = _load_config()
+        cfg['server'] = args.server
+        _save_config(cfg)
     username = input("  Username: ").strip()
     password = getpass.getpass("  Password: ")
     if client.login(username, password):
-        print(f"  ✅ Logged in to {server}\n")
+        print(f"  ✅ Logged in to {client.server}\n")
     else:
         print(f"  ❌ Login failed\n")
 
@@ -414,6 +460,7 @@ def _show_welcome(client):
     print("    englearn talk -n 5         Talk with 5 rounds")
     print("    englearn stats             View learning statistics")
     print("    englearn vocab <word>      Save a word (auto-translates)")
+    print("    englearn config            Show/set config (server URL)")
     print("    englearn login             Login to server")
     print()
     print("  Features:")
@@ -455,7 +502,14 @@ def _show_welcome(client):
                 print("    No activity yet. Start learning!")
             print()
     except Exception:
-        print("  Not logged in. Run: englearn login")
+        from englearn.web_client import _load_config
+        if not _load_config().get('server'):
+            print("  Get started:")
+            print("  ─────────────────────────────────────────────────────────")
+            print("    englearn config server http://your-server:5555")
+            print("    englearn login")
+        else:
+            print("  Not logged in. Run: englearn login")
         print()
 
 
@@ -468,8 +522,13 @@ def main():
         description='EngLearn CLI - English Learning Terminal Frontend'
     )
     parser.add_argument('--server', '-s', type=str, default=None,
-                        help='Web server URL (default: $ENGLEARN_SERVER or http://172.16.134.84:5555)')
+                        help='Web server URL (or set via: englearn config server <url>)')
     sub = parser.add_subparsers(dest='command')
+
+    # config
+    p_config = sub.add_parser('config', help='Show or set configuration')
+    p_config.add_argument('key', nargs='?', type=str, default=None, help='Config key (e.g. server)')
+    p_config.add_argument('value', nargs='?', type=str, default=None, help='Value to set')
 
     # login
     p_login = sub.add_parser('login', help='Login to web server')
@@ -496,6 +555,10 @@ def main():
     args = parser.parse_args()
 
     client = Client(server=args.server)
+
+    if args.command == 'config':
+        cmd_config(client, args)
+        return
 
     if args.command == 'login':
         cmd_login(client, args)

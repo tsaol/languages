@@ -3,7 +3,7 @@ import os
 import json
 import requests
 
-DEFAULT_SERVER = os.environ.get("ENGLEARN_SERVER", "http://172.16.134.84:5555")
+DEFAULT_SERVER = os.environ.get("ENGLEARN_SERVER", "")
 CONFIG_PATH = os.path.expanduser("~/.englearn_cli.json")
 
 
