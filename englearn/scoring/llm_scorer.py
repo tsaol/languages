@@ -34,13 +34,23 @@ def _invoke_model(prompt: str, max_tokens: int = 400) -> str:
 
 
 def _parse_json(text: str) -> dict:
-    """Extract JSON from model response."""
-    if text.startswith("{"):
-        return json.loads(text)
-    start = text.find("{")
-    end = text.rfind("}") + 1
-    if start >= 0 and end > start:
-        return json.loads(text[start:end])
+    """Extract JSON from model response, handling markdown code blocks."""
+    import re
+    # Strip markdown ```json ... ``` wrapper if present
+    md_match = re.search(r'```(?:json)?\s*\n?(.*?)\n?\s*```', text, re.DOTALL)
+    if md_match:
+        text = md_match.group(1).strip()
+    # Fix common LLM JSON errors: "value1" or "value2" -> "value1 / value2"
+    text = re.sub(r'"([^"]*?)"\s+or\s+"([^"]*?)"', r'"\1 / \2"', text)
+    try:
+        if text.startswith("{"):
+            return json.loads(text)
+        start = text.find("{")
+        end = text.rfind("}") + 1
+        if start >= 0 and end > start:
+            return json.loads(text[start:end])
+    except json.JSONDecodeError:
+        pass
     return {}
 
 
