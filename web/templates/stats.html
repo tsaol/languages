@@ -261,13 +261,13 @@
             <span class="text-xs" style="width: 50px;">{{ today.cards_correct }}/{{ today.cards_reviewed }}</span>
         </div>
         {% endif %}
-        {% if today.quiz_taken > 0 %}
+        {% if today.talk_taken > 0 %}
         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-            <span class="text-xs text-dim" style="width: 50px;">Quiz</span>
+            <span class="text-xs text-dim" style="width: 50px;">Talk</span>
             <div class="bar-track" style="height: 16px; flex: 1;">
-                <div class="bar-fill" style="width: {{ today.quiz_pct }}%; background: var(--blue);"></div>
+                <div class="bar-fill" style="width: {{ today.talk_pct }}%; background: var(--blue);"></div>
             </div>
-            <span class="text-xs" style="width: 50px;">{{ today.quiz_correct }}/{{ today.quiz_taken }}</span>
+            <span class="text-xs" style="width: 50px;">{{ today.talk_correct }}/{{ today.talk_taken }}</span>
         </div>
         {% endif %}
         {% else %}
@@ -287,12 +287,12 @@
         </div>
         <div class="stat-box">
             <div class="stat-value" style="color: var(--blue);">{{ accuracy.total }}</div>
-            <div class="stat-label">Quiz Answers</div>
+            <div class="stat-label">Talk Answers</div>
         </div>
         <div class="stat-box">
             {% set acc_color = 'var(--accent)' if accuracy.pct >= 70 else 'var(--yellow)' if accuracy.pct >= 40 else 'var(--red)' %}
             <div class="stat-value" style="color: {{ acc_color }};">{{ accuracy.pct }}%</div>
-            <div class="stat-label">Quiz Accuracy</div>
+            <div class="stat-label">Talk Accuracy</div>
         </div>
     </div>
 
@@ -380,7 +380,7 @@
     <!-- Review Activity Breakdown -->
     {% if progress %}
     <div class="chart-section">
-        <div class="chart-title">Review vs Quiz</div>
+        <div class="chart-title">Review vs Talk</div>
         {% set total_reviewed = progress | map(attribute='cards_reviewed') | sum %}
         {% set total_quizzed = progress | map(attribute='quiz_taken') | sum %}
         {% set grand_total = total_reviewed + total_quizzed %}
@@ -404,7 +404,7 @@
             </div>
             <div class="flex items-center gap-8">
                 <div style="width: 10px; height: 10px; border-radius: 3px; background: var(--blue);"></div>
-                <span class="text-xs">Quizzes ({{ total_quizzed }})</span>
+                <span class="text-xs">Talks ({{ total_quizzed }})</span>
             </div>
         </div>
         {% else %}

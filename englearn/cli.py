@@ -307,7 +307,7 @@ def cmd_stats(client, args):
 
     # Today
     tc = today.get('cards_reviewed', 0)
-    tq = today.get('quiz_taken', 0)
+    tq = today.get('talk_taken', 0)
     tt = today.get('talk_rounds', 0)
     if tc + tq + tt > 0:
         print(f"  Today")
@@ -317,9 +317,9 @@ def cmd_stats(client, args):
             pct = round(tc_correct / tc * 100) if tc > 0 else 0
             print(f"    Cards:  {tc_correct}/{tc} ({pct}%)")
         if tq:
-            tq_correct = today.get('quiz_correct', 0)
+            tq_correct = today.get('talk_correct', 0)
             pct = round(tq_correct / tq * 100) if tq > 0 else 0
-            print(f"    Quiz:   {tq_correct}/{tq} ({pct}%)")
+            print(f"    Talk:   {tq_correct}/{tq} ({pct}%)")
         if tt:
             print(f"    Talk:   {tt} rounds")
         print()
@@ -330,7 +330,7 @@ def cmd_stats(client, args):
     print(f"  {'─' * 45}")
     print(f"    Total Cards:  {data.get('total_cards', 0)}")
     print(f"    Mastered:     {data.get('total_mastered', 0)}")
-    print(f"    Quiz Answers: {acc.get('total', 0)}")
+    print(f"    Talk Answers: {acc.get('total', 0)}")
     print(f"    Accuracy:     {acc.get('pct', 0)}%")
     print(f"    Streak:       {data.get('streak', 0)} days")
     print()
@@ -476,7 +476,7 @@ def _show_welcome(client):
         if data:
             today = data.get('today', {})
             tc = today.get('cards_reviewed', 0)
-            tq = today.get('quiz_taken', 0)
+            tq = today.get('talk_taken', 0)
             tt = today.get('talk_rounds', 0)
             streak = data.get('streak', 0)
 
@@ -487,9 +487,9 @@ def _show_welcome(client):
                 if tc:
                     parts.append(f"{tc} cards")
                 if tq:
-                    parts.append(f"{tq} quiz")
+                    parts.append(f"{tq} talk")
                 if tt:
-                    parts.append(f"{tt} talk")
+                    parts.append(f"{tt} talk rounds")
                 print(f"    {' | '.join(parts)}", end="")
                 if streak > 0:
                     print(f"  {streak}-day streak")
