@@ -13,6 +13,7 @@ setup(
         'requests',
         'mem0ai',
         'qdrant-client',
+        'boto3',
     ],
     entry_points={
         'console_scripts': [
