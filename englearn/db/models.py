@@ -484,6 +484,17 @@ def get_chat_history(role_id: str, limit: int = 20,
         conn.close()
 
 
+def delete_chat_message(msg_id: int) -> bool:
+    """Delete a single chat message by ID."""
+    conn = get_connection()
+    try:
+        cur = conn.execute("DELETE FROM chat_messages WHERE id = ?", (msg_id,))
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
 def clear_chat_history(role_id: str, scenario_id: str = None) -> None:
     """Clear chat messages for a role + scenario."""
     conn = get_connection()
