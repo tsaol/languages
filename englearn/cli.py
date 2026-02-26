@@ -35,10 +35,10 @@ def _ensure_login(client):
     username = input("  Username: ").strip()
     password = getpass.getpass("  Password: ")
     if client.login(username, password):
-        print("  ✅ Logged in.\n")
+        print("  Logged in.\n")
         return True
     else:
-        print("  ❌ Login failed.\n")
+        print("  Login failed.\n")
         return False
 
 
@@ -97,16 +97,16 @@ def cmd_review(client, args):
             bar = '█' * progress + '░' * (30 - progress)
             print(f"  [{bar}] {i + 1}/{total}")
             print(f"  {'─' * 50}")
-            print(f"  📋 {card['front']}")
+            print(f"  {card['front']}")
             if card.get('hint'):
-                print(f"  💡 {card['hint']}")
+                print(f"  Hint: {card['hint']}")
             print()
 
-            user_input = input("  ✏️  Answer: ").strip()
+            user_input = input("  Answer:").strip()
             if user_input.lower() == 'q':
                 break
             if user_input.lower() == 's':
-                print(f"  ⏭️  Answer: {card['back']}")
+                print(f"  Skipped. Answer:{card['back']}")
                 client.submit_review(card['id'], 1)
                 reviewed += 1
                 failed.append(card)
@@ -117,13 +117,13 @@ def cmd_review(client, args):
             reviewed += 1
 
             if match_type == 'exact':
-                print(f"  ✅ Correct!")
+                print(f"  Correct!")
                 correct += 1
             elif match_type == 'close':
-                print(f"  ⚠️  Close! → {card['back']}")
+                print(f"  Close! → {card['back']}")
                 correct += 1
             else:
-                print(f"  ❌ Wrong → {card['back']}")
+                print(f"  Wrong → {card['back']}")
                 failed.append(card)
 
             # Map to web rating: exact→3(easy), close→2(hesitated), wrong→1(fail)
@@ -153,16 +153,16 @@ def _retry_review(client, cards):
     try:
         for i, card in enumerate(cards):
             print(f"  [{i + 1}/{total}] {card['front']}")
-            user_input = input("  ✏️  Answer: ").strip()
+            user_input = input("  Answer:").strip()
             if user_input.lower() == 'q':
                 break
             match_type, _ = _check_match(user_input, card['back'])
             if match_type in ('exact', 'close'):
-                print(f"  ✅ Correct!")
+                print(f"  Correct!")
                 correct += 1
                 client.submit_review(card['id'], 3)
             else:
-                print(f"  ❌ → {card['back']}")
+                print(f"  Wrong. → {card['back']}")
                 client.submit_review(card['id'], 1)
             print()
     except (KeyboardInterrupt, EOFError):
@@ -178,7 +178,7 @@ def cmd_talk(client, args):
     scenarios = data['scenarios']
 
     if not scenarios:
-        print("\n  🎉 All done for today! No scenarios due.\n")
+        print("\n  All done for today! No scenarios due.\n")
         return
 
     total = len(scenarios)
@@ -200,17 +200,17 @@ def cmd_talk(client, args):
 
             print(f"  ── Round {i + 1}/{total} ──────────────────────────────────")
             print()
-            print(f"  🤖 AI: \"{scene['ai_says']}\"")
+            print(f"  AI: \"{scene['ai_says']}\"")
             print()
-            print(f"  📌 {scene['context']}")
-            print(f"  🎯 {scene['pattern']}")
+            print(f"  Scenario: {scene['context']}")
+            print(f"  Pattern:  {scene['pattern']}")
             print()
 
-            user_input = input("  👤 You: ").strip()
+            user_input = input("  You: ").strip()
             if user_input.lower() == 'q':
                 break
             if user_input.lower() == 's':
-                print(f"  ⏭️  Example: {good_responses[0] if good_responses else 'N/A'}")
+                print(f"  Skipped. Example: {good_responses[0] if good_responses else 'N/A'}")
                 print()
                 continue
 
@@ -233,12 +233,12 @@ def cmd_talk(client, args):
             print()
 
             if score >= 0.70:
-                print(f"  ✅ Excellent! ({score:.0%})")
+                print(f"  Excellent! ({score:.0%})")
             elif score >= 0.45:
-                print(f"  ⚠️  Close! ({score:.0%})")
+                print(f"  Close! ({score:.0%})")
                 failed.append(i)
             else:
-                print(f"  ❌ Not quite. ({score:.0%})")
+                print(f"  Not quite. ({score:.0%})")
                 failed.append(i)
 
             # Corrections
@@ -247,8 +247,7 @@ def cmd_talk(client, args):
             if corrections:
                 print(f"  Your answer: {user_input}")
                 for c in corrections:
-                    icon = {'grammar': '📝', 'spelling': '✏️', 'word_choice': '💬'}.get(c.get('type', ''), '•')
-                    print(f"    {icon} \"{c.get('wrong', '')}\" → \"{c.get('correct', '')}\"")
+                    print(f"    - \"{c.get('wrong', '')}\" -> \"{c.get('correct', '')}\"")
             else:
                 print(f"  Your answer: {user_input}")
 
@@ -270,11 +269,11 @@ def cmd_talk(client, args):
 
             feedback = result.get('feedback', '')
             if feedback:
-                print(f"\n  💡 {feedback}")
+                print(f"\n  Tip: {feedback}")
 
             mistake = result.get('common_mistake', '')
             if mistake:
-                print(f"  ⚠  {mistake}")
+                print(f"  Note: {mistake}")
 
             print()
             input("  Enter to continue...")
@@ -312,7 +311,7 @@ def cmd_stats(client, args):
     tq = today.get('quiz_taken', 0)
     tt = today.get('talk_rounds', 0)
     if tc + tq + tt > 0:
-        print(f"  📅 Today")
+        print(f"  Today")
         print(f"  {'─' * 45}")
         if tc:
             tc_correct = today.get('cards_correct', 0)
@@ -328,7 +327,7 @@ def cmd_stats(client, args):
 
     # Overall
     acc = data.get('accuracy', {})
-    print(f"  📊 Overall")
+    print(f"  Overall")
     print(f"  {'─' * 45}")
     print(f"    Total Cards:  {data.get('total_cards', 0)}")
     print(f"    Mastered:     {data.get('total_mastered', 0)}")
@@ -340,7 +339,7 @@ def cmd_stats(client, args):
     # Weekly
     weekly = data.get('weekly', [])
     if weekly:
-        print(f"  📆 This Week")
+        print(f"  This Week")
         print(f"  {'─' * 45}")
         for day in weekly:
             d = day.get('date', '')[-5:]
@@ -352,7 +351,7 @@ def cmd_stats(client, args):
     # Decks
     decks = data.get('decks', [])
     if decks:
-        print(f"  🃏 Decks")
+        print(f"  Decks")
         print(f"  {'─' * 45}")
         print(f"    {'Name':<14} {'Total':>6} {'Due':>6} {'Mastered':>10}")
         for d in decks:
@@ -362,7 +361,7 @@ def cmd_stats(client, args):
     # Categories
     cats = data.get('categories', [])
     if cats:
-        print(f"  📝 Error Categories")
+        print(f"  Error Categories")
         print(f"  {'─' * 45}")
         for cat in cats[:8]:
             name = cat['category'].replace('_', ' ')
@@ -396,9 +395,9 @@ def cmd_vocab(client, args):
 
     result = client.save_vocab(word, chinese, category=args.category or "cli")
     if result.get('ok'):
-        print(f"  ✅ Saved '{word}' ({chinese})\n")
+        print(f"  Saved '{word}' ({chinese})\n")
     else:
-        print(f"  ❌ {result.get('error', 'Failed')}\n")
+        print(f"  Error: {result.get('error', 'Failed')}\n")
 
 
 def cmd_config(client, args):
@@ -412,7 +411,7 @@ def cmd_config(client, args):
         # Update client if server changed
         if args.key == 'server':
             client.server = args.value
-        print(f"  ✅ {args.key} = {args.value}\n")
+        print(f"  {args.key} = {args.value}\n")
     elif args.key:
         print(f"  {args.key} = {cfg.get(args.key, '(not set)')}\n")
     else:
@@ -438,9 +437,9 @@ def cmd_login(client, args):
     username = input("  Username: ").strip()
     password = getpass.getpass("  Password: ")
     if client.login(username, password):
-        print(f"  ✅ Logged in to {client.server}\n")
+        print(f"  Logged in to {client.server}\n")
     else:
-        print(f"  ❌ Login failed\n")
+        print(f"  Login failed.\n")
 
 
 def _show_welcome(client):
@@ -464,12 +463,12 @@ def _show_welcome(client):
     print()
     print("  Features:")
     print("  ─────────────────────────────────────────────────────────")
-    print("    📝 Typing-based review     Type answers, auto-compare")
-    print("    💬 LLM conversation score  6 dimensions: grammar, meaning,")
-    print("                               tone, fluency, pattern, vocabulary")
-    print("    📖 One-tap vocab save      Tap any word to save with auto-translate")
-    print("    📊 Spaced repetition       SM-2 algorithm schedules reviews")
-    print("    🔄 Session persistence     Resume where you left off")
+    print("    Typing-based review     Type answers, auto-compare")
+    print("    LLM conversation score  6 dimensions: grammar, meaning,")
+    print("                            tone, fluency, pattern, vocabulary")
+    print("    One-tap vocab save      Tap any word to save with auto-translate")
+    print("    Spaced repetition       SM-2 algorithm schedules reviews")
+    print("    Session persistence     Resume where you left off")
     print()
 
     # Try to show quick stats if logged in
@@ -494,7 +493,7 @@ def _show_welcome(client):
                     parts.append(f"{tt} talk")
                 print(f"    {' | '.join(parts)}", end="")
                 if streak > 0:
-                    print(f"  🔥 {streak}-day streak")
+                    print(f"  {streak}-day streak")
                 else:
                     print()
             else:
