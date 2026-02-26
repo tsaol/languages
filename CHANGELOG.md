@@ -3,10 +3,12 @@
 ## 0.3.5 (2026-02-26)
 
 - Chat memory: Mem0 integration for long-term semantic memory in Chat
-- Chat AI remembers user info, preferences, and past topics across conversations
-- Uses AWS Bedrock Titan Embed V2 for embeddings, local Qdrant for vector storage
+- LLM fact extraction (infer=True): extracts structured facts from conversations
+- Uses Claude Sonnet 4.5 on Bedrock for memory extraction, Cohere Multilingual V3 for embeddings
+- Local Qdrant vector store for semantic search
 - Memory context injected into roleplay prompts for personalized responses
 - Graceful fallback: chat works normally if memory service unavailable
+- Includes patches for 3 Mem0 bugs (factory mapping, inference profile IDs, topP conflict)
 
 ## 0.3.4 (2026-02-26)
 
