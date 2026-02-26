@@ -331,22 +331,36 @@
     .msg-corrections {
         max-width: 82%;
         margin-top: 3px;
-        padding: 4px 10px;
+        padding: 6px 10px;
         font-size: 0.72rem;
         color: var(--red);
         line-height: 1.5;
     }
 
-    .msg-corrections .correction-item { margin-bottom: 4px; }
+    .msg-corrections .correction-item { margin-bottom: 8px; }
+    .msg-corrections .correction-item:last-child { margin-bottom: 0; }
     .msg-corrections .correction-item .correct-text {
         color: var(--accent);
         font-weight: 500;
+    }
+    .msg-corrections .correction-item .idiomatic {
+        display: block;
+        color: var(--blue);
+        font-size: 0.68rem;
+        margin-top: 1px;
     }
     .msg-corrections .correction-item .explanation {
         display: block;
         color: var(--text-dim);
         font-size: 0.68rem;
         margin-top: 1px;
+    }
+    .msg-corrections .correction-item .pattern-tense {
+        display: block;
+        color: var(--yellow);
+        font-size: 0.65rem;
+        margin-top: 1px;
+        opacity: 0.8;
     }
 
     /* Typing Indicator */
@@ -824,7 +838,11 @@ function appendUserMessage(text, corrections, msgId) {
         corrections.forEach(c => {
             const item = document.createElement('div');
             item.className = 'correction-item';
-            item.innerHTML = '"' + esc(c.wrong || '') + '" &rarr; <span class="correct-text">' + esc(c.correct || '') + '</span>' + (c.explanation ? '<span class="explanation">' + esc(c.explanation) + '</span>' : '');
+            let html = '"' + esc(c.wrong || '') + '" &rarr; <span class="correct-text">' + esc(c.correct || '') + '</span>';
+            if (c.idiomatic) html += '<span class="idiomatic">' + esc(c.idiomatic) + '</span>';
+            if (c.explanation) html += '<span class="explanation">' + esc(c.explanation) + '</span>';
+            if (c.pattern || c.tense) html += '<span class="pattern-tense">' + esc((c.pattern || '') + (c.tense ? ' | ' + c.tense : '')) + '</span>';
+            item.innerHTML = html;
             corrDiv.appendChild(item);
         });
         row.appendChild(corrDiv);
@@ -917,7 +935,11 @@ async function sendMessage() {
             data.corrections.forEach(c => {
                 const item = document.createElement('div');
                 item.className = 'correction-item';
-                item.innerHTML = '"' + esc(c.wrong || '') + '" &rarr; <span class="correct-text">' + esc(c.correct || '') + '</span>' + (c.explanation ? '<span class="explanation">' + esc(c.explanation) + '</span>' : '');
+                let html = '"' + esc(c.wrong || '') + '" &rarr; <span class="correct-text">' + esc(c.correct || '') + '</span>';
+            if (c.idiomatic) html += '<span class="idiomatic">' + esc(c.idiomatic) + '</span>';
+            if (c.explanation) html += '<span class="explanation">' + esc(c.explanation) + '</span>';
+            if (c.pattern || c.tense) html += '<span class="pattern-tense">' + esc((c.pattern || '') + (c.tense ? ' | ' + c.tense : '')) + '</span>';
+            item.innerHTML = html;
                 corrDiv.appendChild(item);
             });
             lastUserRow.appendChild(corrDiv);
