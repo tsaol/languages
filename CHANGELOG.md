@@ -4,6 +4,8 @@
 
 - CLI rewritten as thin HTTP client calling web API (no direct DB access)
 - `pip install git+https://github.com/tsaol/languages.git` to install anywhere
+- CLI welcome screen with feature list and quick stats
+- CLI `config` command to set server URL, first-launch setup prompt
 - Review changed from flip-card to typing-based input with auto-compare
 - Talk conversation practice with Kimi K2.5 LLM 6-dimension scoring
 - Stats dashboard with "Today's Activity" section and streak counter
@@ -14,6 +16,8 @@
 - Talk skips already-reviewed scenarios in same day
 - JSON API endpoints: /api/review/cards, /api/talk/scenarios, /api/stats
 - Dynamic scenario generation from english.log errors via LLM
+- GitHub Flow: CI (lint+test), LLM code review, security scan on PRs
+- Collaboration setup: tsaol (PM) + leoc-76 (Developer)
 
 ## 0.2.0 (2026-02-25)
 
