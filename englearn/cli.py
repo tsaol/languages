@@ -447,8 +447,7 @@ def _show_welcome(client):
     """Show welcome screen with features and quick stats."""
     print()
     print("  ╔═══════════════════════════════════════════════════════╗")
-    print("  ║              EngLearn v0.3.0                         ║")
-    print("  ║         English Learning from Real Errors            ║")
+    print("  ║                  EngLearn v0.3.0                     ║")
     print("  ╚═══════════════════════════════════════════════════════╝")
     print()
     print("  Commands:")
