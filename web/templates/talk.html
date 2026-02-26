@@ -317,13 +317,25 @@ function makeWordsClickable(text) {
     return text.replace(/([a-zA-Z'-]+)/g, '<span class="word" onclick="openVocabForm(this.textContent)">$1</span>');
 }
 
-function openVocabForm(word) {
+async function openVocabForm(word) {
     const clean = word.replace(/[^a-zA-Z'-]/g, '').toLowerCase();
     if (clean.length < 2) return;
     document.getElementById('vocabWord').value = clean;
-    document.getElementById('vocabChinese').value = '';
+    document.getElementById('vocabChinese').value = 'Translating...';
     document.getElementById('vocabSuccess').style.display = 'none';
     document.getElementById('vocabOverlay').style.display = 'block';
+    // Auto-translate
+    try {
+        const resp = await fetch('/vocab/translate', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ word: clean })
+        });
+        const data = await resp.json();
+        document.getElementById('vocabChinese').value = data.chinese || '';
+    } catch(e) {
+        document.getElementById('vocabChinese').value = '';
+    }
     document.getElementById('vocabChinese').focus();
 }
 

@@ -229,6 +229,52 @@
 
 <div class="container fade-in">
 
+    <!-- Today's Activity -->
+    <div class="chart-section today-section" style="margin-bottom: 16px;">
+        <div class="chart-title" style="display: flex; align-items: center; gap: 6px;">
+            Today
+            {% if streak > 0 %}
+            <span style="font-size: 0.7rem; background: var(--accent-dim); color: var(--accent); padding: 1px 8px; border-radius: 10px; font-weight: 700;">{{ streak }}-day streak</span>
+            {% endif %}
+        </div>
+        {% if today.total_actions > 0 %}
+        <div class="stat-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 8px;">
+            <div class="stat-box" style="padding: 10px 6px;">
+                <div class="stat-value" style="font-size: 1.3rem;">{{ today.cards_reviewed }}</div>
+                <div class="stat-label" style="font-size: 0.6rem;">Cards</div>
+            </div>
+            <div class="stat-box" style="padding: 10px 6px;">
+                <div class="stat-value" style="font-size: 1.3rem; color: var(--blue);">{{ today.talk_rounds }}</div>
+                <div class="stat-label" style="font-size: 0.6rem;">Talk</div>
+            </div>
+            <div class="stat-box" style="padding: 10px 6px;">
+                <div class="stat-value" style="font-size: 1.3rem; color: var(--accent);">{{ today.vocab_added }}</div>
+                <div class="stat-label" style="font-size: 0.6rem;">New Words</div>
+            </div>
+        </div>
+        {% if today.cards_reviewed > 0 %}
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+            <span class="text-xs text-dim" style="width: 50px;">Cards</span>
+            <div class="bar-track" style="height: 16px; flex: 1;">
+                <div class="bar-fill" style="width: {{ today.cards_pct }}%; background: var(--accent);"></div>
+            </div>
+            <span class="text-xs" style="width: 50px;">{{ today.cards_correct }}/{{ today.cards_reviewed }}</span>
+        </div>
+        {% endif %}
+        {% if today.quiz_taken > 0 %}
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+            <span class="text-xs text-dim" style="width: 50px;">Quiz</span>
+            <div class="bar-track" style="height: 16px; flex: 1;">
+                <div class="bar-fill" style="width: {{ today.quiz_pct }}%; background: var(--blue);"></div>
+            </div>
+            <span class="text-xs" style="width: 50px;">{{ today.quiz_correct }}/{{ today.quiz_taken }}</span>
+        </div>
+        {% endif %}
+        {% else %}
+        <div class="text-sm text-dim text-center" style="padding: 12px 0;">No activity yet today. Start learning!</div>
+        {% endif %}
+    </div>
+
     <!-- Top stats -->
     <div class="stat-grid">
         <div class="stat-box">

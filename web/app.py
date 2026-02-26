@@ -353,6 +353,25 @@ def vocab():
     return render_template("vocab.html", words=words, categories=categories, total=len(words))
 
 
+@app.route("/vocab/translate", methods=["POST"])
+@login_required
+def vocab_translate():
+    """Auto-translate an English word to Chinese using LLM."""
+    data = request.get_json()
+    word = data.get("word", "").strip()
+    if not word:
+        return jsonify({"chinese": ""})
+    try:
+        from englearn.scoring.llm_scorer import _invoke_model
+        text = _invoke_model(
+            f'Translate the English word "{word}" to Chinese. Reply with ONLY the Chinese translation (1-3 words), nothing else.',
+            max_tokens=30,
+        )
+        return jsonify({"chinese": text.strip().strip('"').strip("'")})
+    except Exception:
+        return jsonify({"chinese": ""})
+
+
 @app.route("/vocab/add", methods=["POST"])
 @login_required
 def vocab_add():
@@ -468,8 +487,40 @@ def stats():
                     continue
             break
 
+        # Today's activity
+        today_progress = progress_map.get(today, {
+            'cards_reviewed': 0, 'cards_correct': 0,
+            'quiz_taken': 0, 'quiz_correct': 0,
+        })
+        today_cards = today_progress['cards_reviewed']
+        today_cards_correct = today_progress['cards_correct']
+        today_quiz = today_progress['quiz_taken']
+        today_quiz_correct = today_progress['quiz_correct']
+
+        # Today's talk scenarios reviewed
+        today_talk = conn.execute(
+            "SELECT COUNT(*) as c FROM talk_scenarios WHERE last_review = ?", (today,)
+        ).fetchone()['c']
+
+        # Today's new vocab added
+        today_vocab = conn.execute(
+            "SELECT COUNT(*) as c FROM flashcards WHERE deck = 'vocab' AND next_review = ?", (today,)
+        ).fetchone()['c']
+
     finally:
         conn.close()
+
+    today_data = {
+        'cards_reviewed': today_cards,
+        'cards_correct': today_cards_correct,
+        'cards_pct': round(today_cards_correct / today_cards * 100) if today_cards > 0 else 0,
+        'quiz_taken': today_quiz,
+        'quiz_correct': today_quiz_correct,
+        'quiz_pct': round(today_quiz_correct / today_quiz * 100) if today_quiz > 0 else 0,
+        'talk_rounds': today_talk,
+        'vocab_added': today_vocab,
+        'total_actions': today_cards + today_quiz + today_talk,
+    }
 
     return render_template("stats.html",
         total_cards=total_cards,
@@ -479,6 +530,7 @@ def stats():
         progress=all_progress,
         categories=categories,
         streak=streak,
+        today=today_data,
     )
 
 
