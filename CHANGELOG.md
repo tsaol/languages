@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.1 (2026-02-27)
+
+- Spelling diff: character-level colored diff on wrong answers (LCS-based, red strikethrough for extra chars, green for missing)
+- Memory tips: LLM-generated error analysis and mnemonic for misspelled vocab words
+- New API endpoint: POST /review/memory-tip
+
 ## 0.5.0 (2026-02-26)
 
 - Independent teacher agent for error correction (separate from role conversation)
