@@ -156,6 +156,55 @@
         font-style: italic;
     }
 
+    /* Word details */
+    .word-details-area {
+        margin-top: 12px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: rgba(59, 130, 246, 0.06);
+        border: 1px solid rgba(59, 130, 246, 0.15);
+        font-size: 0.8rem;
+    }
+    .word-detail-row {
+        display: flex;
+        gap: 6px;
+        align-items: baseline;
+        margin-bottom: 3px;
+    }
+    .word-detail-row:last-child { margin-bottom: 0; }
+    .word-detail-icon { flex-shrink: 0; width: 20px; text-align: center; }
+    .word-detail-text { color: var(--text-dim); }
+
+    /* Retype area */
+    .retype-area {
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid var(--border);
+    }
+    .retype-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        margin-bottom: 6px;
+    }
+    .retype-input {
+        width: 100%;
+        padding: 12px;
+        background: var(--surface2);
+        border: 2px solid var(--border);
+        border-radius: 10px;
+        color: var(--text);
+        font-size: 1rem;
+        outline: none;
+        transition: border-color 0.15s;
+    }
+    .retype-input:focus { border-color: var(--accent); }
+    .retype-input.retype-success {
+        border-color: var(--accent);
+        background: rgba(76, 175, 80, 0.08);
+    }
+
     .empty-state { text-align: center; padding: 60px 20px; }
     .empty-state .emoji { font-size: 3.5rem; margin-bottom: 16px; }
     .complete-state { text-align: center; padding: 40px 20px; }
@@ -241,8 +290,19 @@
                     <div class="memory-tip-analysis" id="memoryTipAnalysis"></div>
                     <div class="memory-tip-text" id="memoryTipText"></div>
                 </div>
+                <!-- Word details (syllables, roots, phonetic) -->
+                <div class="word-details-area" id="wordDetailsArea" style="display:none;">
+                    <div class="word-detail-row" id="wordSyllables"><span class="word-detail-icon">📝</span><span class="word-detail-text" id="wordSyllablesText"></span></div>
+                    <div class="word-detail-row" id="wordRoots"><span class="word-detail-icon">🌱</span><span class="word-detail-text" id="wordRootsText"></span></div>
+                    <div class="word-detail-row" id="wordPhonetic"><span class="word-detail-icon">🔊</span><span class="word-detail-text" id="wordPhoneticText"></span></div>
+                </div>
+                <!-- Retype to pass -->
+                <div class="retype-area" id="retypeArea" style="display:none;">
+                    <div class="retype-label">Type it correctly to continue:</div>
+                    <input type="text" id="retypeInput" class="retype-input" placeholder="Retype the correct spelling..." autocomplete="off" autocapitalize="off" spellcheck="false">
+                </div>
             </div>
-            <button onclick="nextCard()" class="btn btn-accent w-full">Next</button>
+            <button id="nextBtn" onclick="nextCard()" class="btn btn-accent w-full">Next</button>
         </div>
     </div>
 
@@ -352,6 +412,75 @@
         return html;
     }
 
+    function loadWordDetails(card) {
+        const area = document.getElementById('wordDetailsArea');
+        const syllText = document.getElementById('wordSyllablesText');
+        const rootsText = document.getElementById('wordRootsText');
+        const phonText = document.getElementById('wordPhoneticText');
+
+        // Check if already cached on card object
+        if (card._wordDetails) {
+            showWordDetails(card._wordDetails);
+            return;
+        }
+
+        area.style.display = 'block';
+        syllText.textContent = 'Loading...';
+        rootsText.textContent = '';
+        phonText.textContent = '';
+
+        let chinese = '';
+        if (card.front && card.front.includes('"')) {
+            const parts = card.front.split('"');
+            if (parts.length >= 2) chinese = parts[1];
+        }
+
+        fetch('/review/word-details', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ card_id: card.id, word: card.back, chinese })
+        }).then(r => r.json()).then(data => {
+            card._wordDetails = data;
+            showWordDetails(data);
+        }).catch(() => { area.style.display = 'none'; });
+    }
+
+    function showWordDetails(data) {
+        const area = document.getElementById('wordDetailsArea');
+        if (!data.syllables && !data.word_roots && !data.phonetic) {
+            area.style.display = 'none';
+            return;
+        }
+        area.style.display = 'block';
+        document.getElementById('wordSyllablesText').textContent = data.syllables || '';
+        document.getElementById('wordRootsText').textContent = data.word_roots || '';
+        document.getElementById('wordPhoneticText').textContent = data.phonetic || '';
+        document.getElementById('wordSyllables').style.display = data.syllables ? '' : 'none';
+        document.getElementById('wordRoots').style.display = data.word_roots ? '' : 'none';
+        document.getElementById('wordPhonetic').style.display = data.phonetic ? '' : 'none';
+    }
+
+    function setupRetype(card) {
+        const retypeArea = document.getElementById('retypeArea');
+        const retypeInput = document.getElementById('retypeInput');
+        const nextBtn = document.getElementById('nextBtn');
+        retypeArea.style.display = 'block';
+        retypeInput.value = '';
+        retypeInput.className = 'retype-input';
+        nextBtn.style.display = 'none';
+        retypeInput.focus();
+    }
+
+    function checkRetype(card) {
+        const retypeInput = document.getElementById('retypeInput');
+        const val = retypeInput.value.trim();
+        if (normalize(val) === normalize(card.back)) {
+            retypeInput.className = 'retype-input retype-success';
+            retypeInput.disabled = true;
+            document.getElementById('nextBtn').style.display = '';
+        }
+    }
+
     function loadMemoryTip(card, userAnswer) {
         const tipArea = document.getElementById('memoryTipArea');
         const tipAnalysis = document.getElementById('memoryTipAnalysis');
@@ -406,6 +535,10 @@
         document.getElementById('submitBtn').textContent = 'Check';
         document.getElementById('exampleArea').style.display = 'none';
         document.getElementById('memoryTipArea').style.display = 'none';
+        document.getElementById('wordDetailsArea').style.display = 'none';
+        document.getElementById('retypeArea').style.display = 'none';
+        document.getElementById('retypeInput').disabled = false;
+        document.getElementById('nextBtn').style.display = '';
         document.getElementById('answerInput').focus();
         saveSession();
     }
@@ -457,9 +590,11 @@
         userAnswerEl.style.color = isCorrect ? 'var(--accent)' : '';
         document.getElementById('resultCorrectAnswer').textContent = card.back;
 
-        // Load memory tip for wrong answers (vocab deck)
+        // Wrong vocab answers: load details + memory tip + retype
         if (!isCorrect && card.deck === 'vocab' && input.toLowerCase() !== '(skipped)') {
             loadMemoryTip(card, input);
+            loadWordDetails(card);
+            setupRetype(card);
         }
 
         // Load example sentence
@@ -593,6 +728,12 @@
     // Enter to submit
     document.getElementById('answerInput').addEventListener('keydown', e => {
         if (e.key === 'Enter') checkAnswer();
+    });
+
+    // Enter on retype input to check
+    document.getElementById('retypeInput').addEventListener('input', () => {
+        const card = cards[idx];
+        if (card) checkRetype(card);
     });
 
     initSession();
