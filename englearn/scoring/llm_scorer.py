@@ -568,6 +568,23 @@ Respond in JSON only:
         return []
 
 
+def generate_word_details(word: str, chinese: str) -> dict:
+    """Generate syllable breakdown, word roots, and phonetic for a vocab word."""
+    prompt = f"""For the English word "{word}" (Chinese meaning: {chinese}), provide:
+1. Syllable breakdown using middle dots (·) as separators
+2. Word root/morpheme analysis showing prefix, root, suffix with meanings
+3. IPA phonetic transcription
+
+Respond in JSON only:
+{{"syllables": "<e.g. in·de·pen·dent>", "word_roots": "<e.g. in(not) + depend(rely on) + ent(adj suffix)>", "phonetic": "<e.g. /ˌɪndɪˈpendənt/>"}}"""
+
+    try:
+        text = _invoke_model(prompt, max_tokens=150)
+        return _parse_json(text)
+    except Exception:
+        return {"syllables": "", "word_roots": "", "phonetic": ""}
+
+
 def generate_memory_tip(word: str, user_answer: str, chinese: str) -> dict:
     """Generate a memory tip for a misspelled word."""
     prompt = f"""The student tried to spell "{word}" (Chinese: {chinese}) but typed "{user_answer}".

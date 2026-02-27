@@ -781,6 +781,58 @@ def review_example():
         return jsonify({"sentence": "", "collocation": "", "error": str(e)[:100]})
 
 
+# ─── Review Word Details ──────────────────────────────────────────────────────
+
+
+@app.route("/review/word-details", methods=["POST"])
+@login_required
+def review_word_details():
+    """Generate or return cached word details (syllables, roots, phonetic)."""
+    data = request.get_json()
+    card_id = data.get("card_id")
+    word = data.get("word", "")
+    chinese = data.get("chinese", "")
+
+    if not card_id or not word:
+        return jsonify({"error": "card_id and word required"}), 400
+
+    # Check cache first
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT syllables, word_roots, phonetic FROM flashcards WHERE id = ?", (card_id,)
+        ).fetchone()
+        if row and row['syllables']:
+            return jsonify({
+                "syllables": row['syllables'] or "",
+                "word_roots": row['word_roots'] or "",
+                "phonetic": row['phonetic'] or "",
+            })
+    finally:
+        conn.close()
+
+    # Generate via LLM
+    try:
+        from englearn.scoring.llm_scorer import generate_word_details
+        result = generate_word_details(word, chinese)
+        syllables = result.get("syllables", "")
+        word_roots = result.get("word_roots", "")
+        phonetic = result.get("phonetic", "")
+        if syllables:
+            conn = get_connection()
+            try:
+                conn.execute(
+                    "UPDATE flashcards SET syllables = ?, word_roots = ?, phonetic = ? WHERE id = ?",
+                    (syllables, word_roots, phonetic, card_id)
+                )
+                conn.commit()
+            finally:
+                conn.close()
+        return jsonify({"syllables": syllables, "word_roots": word_roots, "phonetic": phonetic})
+    except Exception as e:
+        return jsonify({"syllables": "", "word_roots": "", "phonetic": "", "error": str(e)[:100]})
+
+
 # ─── Review Memory Tip ────────────────────────────────────────────────────────
 
 

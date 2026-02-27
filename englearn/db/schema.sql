@@ -41,6 +41,9 @@ CREATE TABLE IF NOT EXISTS flashcards (
     last_review TEXT,
     example_sentence TEXT,
     collocation TEXT,
+    syllables TEXT,
+    word_roots TEXT,
+    phonetic TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 

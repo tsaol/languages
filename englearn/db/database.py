@@ -31,6 +31,12 @@ def _migrate(conn):
         conn.execute("ALTER TABLE flashcards ADD COLUMN example_sentence TEXT")
     if 'collocation' not in cols:
         conn.execute("ALTER TABLE flashcards ADD COLUMN collocation TEXT")
+    if 'syllables' not in cols:
+        conn.execute("ALTER TABLE flashcards ADD COLUMN syllables TEXT")
+    if 'word_roots' not in cols:
+        conn.execute("ALTER TABLE flashcards ADD COLUMN word_roots TEXT")
+    if 'phonetic' not in cols:
+        conn.execute("ALTER TABLE flashcards ADD COLUMN phonetic TEXT")
 
     # Add chat_messages table if missing
     tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
