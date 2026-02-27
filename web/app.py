@@ -781,6 +781,32 @@ def review_example():
         return jsonify({"sentence": "", "collocation": "", "error": str(e)[:100]})
 
 
+# ─── Review Memory Tip ────────────────────────────────────────────────────────
+
+
+@app.route("/review/memory-tip", methods=["POST"])
+@login_required
+def review_memory_tip():
+    """Generate a memory tip for a misspelled word."""
+    data = request.get_json()
+    word = data.get("word", "")
+    user_answer = data.get("user_answer", "")
+    chinese = data.get("chinese", "")
+
+    if not word or not user_answer:
+        return jsonify({"error": "word and user_answer required"}), 400
+
+    try:
+        from englearn.scoring.llm_scorer import generate_memory_tip
+        result = generate_memory_tip(word, user_answer, chinese)
+        return jsonify({
+            "tip": result.get("tip", ""),
+            "error_analysis": result.get("error_analysis", ""),
+        })
+    except Exception as e:
+        return jsonify({"tip": "", "error_analysis": "", "error": str(e)[:100]})
+
+
 # ─── API ──────────────────────────────────────────────────────────────────────
 
 

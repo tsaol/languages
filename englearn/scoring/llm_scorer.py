@@ -568,6 +568,21 @@ Respond in JSON only:
         return []
 
 
+def generate_memory_tip(word: str, user_answer: str, chinese: str) -> dict:
+    """Generate a memory tip for a misspelled word."""
+    prompt = f"""The student tried to spell "{word}" (Chinese: {chinese}) but typed "{user_answer}".
+Analyze the specific spelling error and provide a memorable tip to help them remember the correct spelling.
+
+Respond in JSON only:
+{{"error_analysis": "<what exactly the student got wrong, e.g. 'swapped ie to ei', 'added extra r'>", "tip": "<a short memorable mnemonic or trick to remember the correct spelling, e.g. No r in achieve — think: a chief achieves>"}}"""
+
+    try:
+        text = _invoke_model(prompt, max_tokens=200)
+        return _parse_json(text)
+    except Exception:
+        return {"error_analysis": "", "tip": ""}
+
+
 def generate_scenario(original: str, corrected: str, pattern: str) -> dict:
     """Generate a Talk scenario from an english.log error entry."""
     prompt = f"""A Chinese English learner made this error:

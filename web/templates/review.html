@@ -123,6 +123,39 @@
     }
     .deck-chip:active { transform: scale(0.95); }
 
+    /* Spelling diff */
+    .char-match { color: var(--text); }
+    .char-wrong { color: var(--red); text-decoration: line-through; font-weight: 600; }
+    .char-missing { color: var(--accent); font-weight: 600; background: rgba(76, 175, 80, 0.15); border-radius: 2px; padding: 0 1px; }
+
+    /* Memory tip */
+    .memory-tip-area {
+        margin-top: 12px;
+        padding: 12px;
+        border-radius: 8px;
+        background: linear-gradient(145deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.08) 100%);
+        border: 1px solid rgba(139, 92, 246, 0.2);
+        font-size: 0.82rem;
+    }
+    .memory-tip-header {
+        font-weight: 600;
+        color: #a78bfa;
+        margin-bottom: 6px;
+        font-size: 0.75rem;
+    }
+    .memory-tip-analysis {
+        color: var(--text-dim);
+        margin-bottom: 4px;
+    }
+    .memory-tip-text {
+        color: var(--text);
+        font-style: italic;
+    }
+    .memory-tip-loading {
+        color: var(--text-dim);
+        font-style: italic;
+    }
+
     .empty-state { text-align: center; padding: 60px 20px; }
     .empty-state .emoji { font-size: 3.5rem; margin-bottom: 16px; }
     .complete-state { text-align: center; padding: 40px 20px; }
@@ -202,6 +235,12 @@
                     <div class="example-sentence" id="exampleSentence"></div>
                     <div class="example-collocation" id="exampleCollocation"></div>
                 </div>
+                <!-- Memory tip -->
+                <div class="memory-tip-area" id="memoryTipArea" style="display:none;">
+                    <div class="memory-tip-header">🧠 Memory Tip</div>
+                    <div class="memory-tip-analysis" id="memoryTipAnalysis"></div>
+                    <div class="memory-tip-text" id="memoryTipText"></div>
+                </div>
             </div>
             <button onclick="nextCard()" class="btn btn-accent w-full">Next</button>
         </div>
@@ -279,6 +318,74 @@
         return s.toLowerCase().trim().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ');
     }
 
+    function buildDiff(userStr, correctStr) {
+        // LCS-based character diff
+        const a = userStr.toLowerCase(), b = correctStr.toLowerCase();
+        const m = a.length, n = b.length;
+        // Build LCS table
+        const dp = Array.from({length: m + 1}, () => new Array(n + 1).fill(0));
+        for (let i = 1; i <= m; i++)
+            for (let j = 1; j <= n; j++)
+                dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1] + 1 : Math.max(dp[i-1][j], dp[i][j-1]);
+        // Backtrack to build diff
+        let html = '';
+        let i = m, j = n;
+        const parts = [];
+        while (i > 0 || j > 0) {
+            if (i > 0 && j > 0 && a[i-1] === b[j-1]) {
+                parts.push({type: 'match', char: userStr[i-1]});
+                i--; j--;
+            } else if (j > 0 && (i === 0 || dp[i][j-1] >= dp[i-1][j])) {
+                parts.push({type: 'missing', char: correctStr[j-1]});
+                j--;
+            } else {
+                parts.push({type: 'wrong', char: userStr[i-1]});
+                i--;
+            }
+        }
+        parts.reverse();
+        for (const p of parts) {
+            if (p.type === 'match') html += `<span class="char-match">${p.char}</span>`;
+            else if (p.type === 'wrong') html += `<span class="char-wrong">${p.char}</span>`;
+            else html += `<span class="char-missing">${p.char}</span>`;
+        }
+        return html;
+    }
+
+    function loadMemoryTip(card, userAnswer) {
+        const tipArea = document.getElementById('memoryTipArea');
+        const tipAnalysis = document.getElementById('memoryTipAnalysis');
+        const tipText = document.getElementById('memoryTipText');
+        tipArea.style.display = 'block';
+        tipAnalysis.textContent = '';
+        tipText.textContent = 'Loading...';
+        tipText.className = 'memory-tip-loading';
+
+        let chinese = '';
+        if (card.front && card.front.includes('"')) {
+            const parts = card.front.split('"');
+            if (parts.length >= 2) chinese = parts[1];
+        }
+
+        fetch('/review/memory-tip', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ word: card.back, user_answer: userAnswer, chinese })
+        }).then(r => r.json()).then(data => {
+            tipText.className = 'memory-tip-text';
+            if (data.error_analysis) {
+                tipAnalysis.textContent = '❌ ' + data.error_analysis;
+            }
+            if (data.tip) {
+                tipText.textContent = '💡 ' + data.tip;
+            } else {
+                tipArea.style.display = 'none';
+            }
+        }).catch(() => {
+            tipArea.style.display = 'none';
+        });
+    }
+
     function showCard() {
         if (idx >= cards.length) { showComplete(); return; }
         const card = cards[idx];
@@ -298,6 +405,7 @@
         document.getElementById('submitBtn').disabled = false;
         document.getElementById('submitBtn').textContent = 'Check';
         document.getElementById('exampleArea').style.display = 'none';
+        document.getElementById('memoryTipArea').style.display = 'none';
         document.getElementById('answerInput').focus();
         saveSession();
     }
@@ -340,9 +448,19 @@
         const resultCard = document.getElementById('resultCard');
         resultCard.className = 'result-card ' + (isCorrect ? 'correct' : 'wrong');
         document.getElementById('resultIcon').textContent = isCorrect ? '✅' : '❌';
-        document.getElementById('resultUserAnswer').textContent = input;
-        document.getElementById('resultUserAnswer').style.color = isCorrect ? 'var(--accent)' : 'var(--red)';
+        const userAnswerEl = document.getElementById('resultUserAnswer');
+        if (!isCorrect && input.toLowerCase() !== '(skipped)') {
+            userAnswerEl.innerHTML = buildDiff(input, card.back);
+        } else {
+            userAnswerEl.textContent = input;
+        }
+        userAnswerEl.style.color = isCorrect ? 'var(--accent)' : '';
         document.getElementById('resultCorrectAnswer').textContent = card.back;
+
+        // Load memory tip for wrong answers (vocab deck)
+        if (!isCorrect && card.deck === 'vocab' && input.toLowerCase() !== '(skipped)') {
+            loadMemoryTip(card, input);
+        }
 
         // Load example sentence
         loadExample(card);
