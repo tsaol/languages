@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.2 (2026-02-28)
+
+- Chat corrections → Review pipeline: save corrections as flashcards with 🔖 bookmark button
+- New API endpoint: POST /api/chat/save-correction (dedup against existing daily deck cards)
+- New DB function: flashcard_exists() for dedup checking
+
 ## 0.5.1 (2026-02-27)
 
 - Spelling diff: character-level colored diff on wrong answers (LCS-based, red strikethrough for extra chars, green for missing)
