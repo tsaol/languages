@@ -45,6 +45,25 @@ def insert_flashcard(deck: str, front: str, back: str, hint: str = "",
         conn.close()
 
 
+def flashcard_exists(deck: str, back: str, front_contains: str = None) -> bool:
+    """Check if a flashcard already exists (for dedup)."""
+    conn = get_connection()
+    try:
+        if front_contains:
+            row = conn.execute(
+                "SELECT 1 FROM flashcards WHERE deck = ? AND back = ? AND front LIKE ? LIMIT 1",
+                (deck, back, f"%{front_contains}%")
+            ).fetchone()
+        else:
+            row = conn.execute(
+                "SELECT 1 FROM flashcards WHERE deck = ? AND back = ? LIMIT 1",
+                (deck, back)
+            ).fetchone()
+        return row is not None
+    finally:
+        conn.close()
+
+
 def get_due_flashcards(deck: str = None, limit: int = 20) -> List[dict]:
     conn = get_connection()
     try:

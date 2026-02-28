@@ -27,6 +27,8 @@ from englearn.db.models import (
     get_chat_history,
     clear_chat_history,
     delete_chat_message,
+    insert_flashcard,
+    flashcard_exists,
 )
 from englearn.db.database import get_connection, init_db
 
@@ -407,7 +409,6 @@ def vocab_add():
     except Exception:
         pass
 
-    from englearn.db.models import insert_flashcard
     card_id = insert_flashcard(
         deck='vocab',
         front=front,
@@ -857,6 +858,41 @@ def review_memory_tip():
         })
     except Exception as e:
         return jsonify({"tip": "", "error_analysis": "", "error": str(e)[:100]})
+
+
+# ─── Chat → Review Pipeline ──────────────────────────────────────────────────
+
+
+@app.route("/api/chat/save-correction", methods=["POST"])
+@login_required
+def api_chat_save_correction():
+    """Save a chat correction as a flashcard in the daily deck."""
+    data = request.get_json()
+    wrong = data.get("wrong", "").strip()
+    correct = data.get("correct", "").strip()
+    idiomatic = data.get("idiomatic", "").strip()
+    pattern = data.get("pattern", "").strip()
+    tense = data.get("tense", "").strip()
+
+    if not wrong or not correct:
+        return jsonify({"error": "wrong and correct are required"}), 400
+
+    # Dedup check
+    if flashcard_exists(deck="daily", back=correct, front_contains=wrong):
+        return jsonify({"ok": True, "duplicate": True})
+
+    # Build flashcard
+    front = f'Correct: "{wrong}"'
+    back = correct
+    hint_parts = []
+    if pattern:
+        hint_parts.append(f"Pattern: {pattern}")
+    if tense:
+        hint_parts.append(f"Tense: {tense}")
+    hint = " | ".join(hint_parts)
+
+    card_id = insert_flashcard(deck="daily", front=front, back=back, hint=hint)
+    return jsonify({"ok": True, "card_id": card_id})
 
 
 # ─── API ──────────────────────────────────────────────────────────────────────

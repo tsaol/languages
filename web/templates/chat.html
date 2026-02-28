@@ -337,8 +337,20 @@
         line-height: 1.5;
     }
 
-    .msg-corrections .correction-item { margin-bottom: 8px; }
+    .msg-corrections .correction-item { margin-bottom: 8px; position: relative; padding-right: 28px; }
     .msg-corrections .correction-item:last-child { margin-bottom: 0; }
+    .save-correction-btn {
+        position: absolute;
+        top: 0;
+        right: 0;
+        cursor: pointer;
+        font-size: 0.82rem;
+        opacity: 0.6;
+        transition: opacity 0.15s;
+        user-select: none;
+    }
+    .save-correction-btn:hover { opacity: 1; }
+    .save-correction-btn.saved { opacity: 0.4; cursor: default; }
     .msg-corrections .correction-item .correct-text {
         color: var(--accent);
         font-weight: 500;
@@ -838,7 +850,8 @@ function appendUserMessage(text, corrections, msgId) {
         corrections.forEach(c => {
             const item = document.createElement('div');
             item.className = 'correction-item';
-            let html = '"' + esc(c.wrong || '') + '" &rarr; <span class="correct-text">' + esc(c.correct || '') + '</span>';
+            let html = '<span class="save-correction-btn" onclick="saveCorrection(this)" data-wrong="' + esc(c.wrong || '') + '" data-correct="' + esc(c.correct || '') + '" data-idiomatic="' + esc(c.idiomatic || '') + '" data-pattern="' + esc(c.pattern || '') + '" data-tense="' + esc(c.tense || '') + '">🔖</span>';
+            html += '"' + esc(c.wrong || '') + '" &rarr; <span class="correct-text">' + esc(c.correct || '') + '</span>';
             if (c.idiomatic) html += '<span class="idiomatic">' + esc(c.idiomatic) + '</span>';
             if (c.explanation) html += '<span class="explanation">' + esc(c.explanation) + '</span>';
             if (c.pattern || c.tense) html += '<span class="pattern-tense">' + esc((c.pattern || '') + (c.tense ? ' | ' + c.tense : '')) + '</span>';
@@ -935,7 +948,8 @@ async function sendMessage() {
             data.corrections.forEach(c => {
                 const item = document.createElement('div');
                 item.className = 'correction-item';
-                let html = '"' + esc(c.wrong || '') + '" &rarr; <span class="correct-text">' + esc(c.correct || '') + '</span>';
+                let html = '<span class="save-correction-btn" onclick="saveCorrection(this)" data-wrong="' + esc(c.wrong || '') + '" data-correct="' + esc(c.correct || '') + '" data-idiomatic="' + esc(c.idiomatic || '') + '" data-pattern="' + esc(c.pattern || '') + '" data-tense="' + esc(c.tense || '') + '">🔖</span>';
+                html += '"' + esc(c.wrong || '') + '" &rarr; <span class="correct-text">' + esc(c.correct || '') + '</span>';
             if (c.idiomatic) html += '<span class="idiomatic">' + esc(c.idiomatic) + '</span>';
             if (c.explanation) html += '<span class="explanation">' + esc(c.explanation) + '</span>';
             if (c.pattern || c.tense) html += '<span class="pattern-tense">' + esc((c.pattern || '') + (c.tense ? ' | ' + c.tense : '')) + '</span>';
@@ -1031,6 +1045,37 @@ async function saveToVocab() {
         el.textContent = '"' + word + '" saved!';
         el.style.display = 'block';
         setTimeout(() => closeVocabForm(), 1000);
+    }
+}
+
+// ── Save Correction to Review ──
+async function saveCorrection(btn) {
+    if (btn.classList.contains('saved')) return;
+    const wrong = btn.getAttribute('data-wrong');
+    const correct = btn.getAttribute('data-correct');
+    const idiomatic = btn.getAttribute('data-idiomatic') || '';
+    const pattern = btn.getAttribute('data-pattern') || '';
+    const tense = btn.getAttribute('data-tense') || '';
+
+    try {
+        const resp = await fetch('/api/chat/save-correction', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ wrong, correct, idiomatic, pattern, tense })
+        });
+        const data = await resp.json();
+        if (data.ok) {
+            if (data.duplicate) {
+                btn.textContent = '📋';
+                btn.classList.add('saved');
+                setTimeout(() => { btn.textContent = '✅'; }, 1200);
+            } else {
+                btn.textContent = '✅';
+                btn.classList.add('saved');
+            }
+        }
+    } catch (e) {
+        console.error('Failed to save correction:', e);
     }
 }
 
